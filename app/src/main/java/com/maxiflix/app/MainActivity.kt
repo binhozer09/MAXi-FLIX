@@ -587,6 +587,30 @@ class MainActivity : AppCompatActivity() {
                       event.stopImmediatePropagation();
                     }
                   }, true);
+                  // A resposta 204 deixa o iframe de anúncio vazio ocupando espaço.
+                  // A resposta de bloqueio agora avisa o documento pai para remover o frame.
+                  window.addEventListener('message', function(event) {
+                    if (!event.data || event.data.type !== 'maxiflix-blocked-ad-frame') return;
+                    document.querySelectorAll('iframe,frame').forEach(function(frame) {
+                      if (frame.contentWindow !== event.source) return;
+                      let parent = frame.parentElement;
+                      frame.remove();
+                      let depth = 0;
+                      while (parent && parent !== document.body &&
+                             parent !== document.documentElement && depth++ < 3) {
+                        if (parent.querySelector('video,audio,[class*="player" i],[id*="player" i]')) break;
+                        const meaningful = Array.from(parent.children).filter(function(child) {
+                          return !/^(SCRIPT|STYLE|NOSCRIPT)$/.test(child.tagName);
+                        });
+                        const text = (parent.textContent || '').replace(/\\s+/g, '').trim();
+                        if (meaningful.length === 0 && text.length === 0) {
+                          const next = parent.parentElement;
+                          parent.remove();
+                          parent = next;
+                        } else break;
+                      }
+                    });
+                  }, false);
                 }
                 cleanAdFrames(document);
                 if (!window.__maxiflixAdObserver && document.documentElement) {
@@ -670,13 +694,22 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun blockedAdResponse(): WebResourceResponse {
+        // Notifica o documento pai para remover o iframe que receberia o anúncio.
+        // Isso evita deixar um retângulo branco no lugar da publicidade bloqueada.
+        val html = """
+            <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+            <style>html,body{display:none!important;width:0!important;height:0!important;margin:0!important;padding:0!important}</style>
+            </head><body><script>
+              try { parent.postMessage({type:'maxiflix-blocked-ad-frame'}, '*'); } catch (_) {}
+            </script></body></html>
+        """.trimIndent()
         return WebResourceResponse(
-            "text/plain",
+            "text/html",
             "UTF-8",
-            204,
-            "No Content",
-            emptyMap(),
-            ByteArrayInputStream(ByteArray(0))
+            200,
+            "OK",
+            mapOf("Cache-Control" to "no-store"),
+            ByteArrayInputStream(html.toByteArray(Charsets.UTF_8))
         )
     }
 
