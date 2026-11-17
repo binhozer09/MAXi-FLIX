@@ -77,21 +77,31 @@ jobs:
               print(f"::add-mask::{secret}")
 
           with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
-              env.write(f"MAXIFLIX_KEYSTORE_PATH={keystore_path}\\n")
-              env.write(f"MAXIFLIX_KEYSTORE_PASSWORD={store_password}\\n")
-              env.write(f"MAXIFLIX_KEY_ALIAS={key_alias}\\n")
-              env.write(f"MAXIFLIX_KEY_PASSWORD={key_password}\\n")
+              env.write(f"MAXIFLIX_KEYSTORE_PATH={keystore_path}\n")
+              env.write(f"MAXIFLIX_KEYSTORE_PASSWORD={store_password}\n")
+              env.write(f"MAXIFLIX_KEY_ALIAS={key_alias}\n")
+              env.write(f"MAXIFLIX_KEY_PASSWORD={key_password}\n")
           PY
 
       - name: Build signed release APK
-        run: gradle --no-daemon :app:clean :app:assembleRelease
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$MAXIFLIX_KEYSTORE_PATH"
+          test -n "$MAXIFLIX_KEYSTORE_PASSWORD"
+          test -n "$MAXIFLIX_KEY_ALIAS"
+          test -n "$MAXIFLIX_KEY_PASSWORD"
+          gradle --no-daemon :app:clean :app:assembleRelease
+          APK_PATH="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+          test -n "$APK_PATH"
+          apksigner verify --verbose "$APK_PATH"
+          mkdir -p release
+          cp "$APK_PATH" release/MAXi-FLIX.apk
 
       - name: Create release manifest
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p release
-          cp app/build/outputs/apk/release/app-release.apk release/MAXi-FLIX.apk
           python3 - <<'PY'
           import hashlib
           import json
