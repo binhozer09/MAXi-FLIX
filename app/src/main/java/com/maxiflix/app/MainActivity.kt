@@ -430,7 +430,7 @@ class MainActivity : AppCompatActivity() {
             ): WebResourceResponse? {
                 if (isBlockedAdHost(request.url)) {
                     logDiagnostic("BLOCK_RESOURCE", "${request.method} ${safeUrl(request.url.toString())}")
-                    return blockedAdResponse()
+                    return blockedAdResponse(request.url, request.requestHeaders)
                 }
                 return super.shouldInterceptRequest(view, request)
             }
@@ -442,7 +442,7 @@ class MainActivity : AppCompatActivity() {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
                 if (uri != null && isBlockedAdHost(uri)) {
                     logDiagnostic("BLOCK_RESOURCE_LEGACY", safeUrl(url))
-                    return blockedAdResponse()
+                    return blockedAdResponse(uri, emptyMap())
                 }
                 return super.shouldInterceptRequest(view, url)
             }
@@ -846,9 +846,55 @@ class MainActivity : AppCompatActivity() {
         return adUrlMarkers.any { marker -> pathAndQuery.contains(marker) }
     }
 
-    private fun blockedAdResponse(): WebResourceResponse {
-        // Notifica o documento pai para remover o iframe que receberia o anúncio.
-        // Isso evita deixar um retângulo branco no lugar da publicidade bloqueada.
+    private fun blockedAdResponse(
+        uri: Uri,
+        requestHeaders: Map<String, String>
+    ): WebResourceResponse {
+        // Nunca devolve HTML a um pedido de JavaScript/imagem: isso gerava
+        // "Unexpected token '<'" dentro dos scripts do player e dos trackers.
+        val path = uri.encodedPath.orEmpty().lowercase(Locale.ROOT)
+        val accept = requestHeaders.entries
+            .firstOrNull { it.key.equals("Accept", ignoreCase = true) }
+            ?.value.orEmpty().lowercase(Locale.ROOT)
+
+        val mimeType = when {
+            path.endsWith(".js") || path.endsWith(".mjs") ||
+                accept.contains("javascript") -> "application/javascript"
+            path.endsWith(".xml") || path.endsWith(".vast") ||
+                path.endsWith(".vmap") || accept.contains("application/xml") ||
+                accept.contains("text/xml") || accept.contains("vast+xml") -> "application/xml"
+            path.endsWith(".png") || path.endsWith(".jpg") ||
+                path.endsWith(".jpeg") || path.endsWith(".webp") ||
+                path.endsWith(".gif") || accept.startsWith("image/") -> "image/gif"
+            accept.contains("text/html") || accept.contains("application/xhtml") -> "text/html"
+            else -> "text/plain"
+        }
+
+        if (mimeType != "text/html") {
+            val pixel = if (mimeType == "image/gif") {
+                byteArrayOf(
+                    0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00,
+                    0x01, 0x00, 0x80.toByte(), 0x00, 0x00, 0x00, 0x00,
+                    0x00, 0xff.toByte(), 0xff.toByte(), 0xff.toByte(),
+                    0x21, 0xf9.toByte(), 0x04, 0x01, 0x00, 0x00, 0x00,
+                    0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                    0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00,
+                    0x3b
+                )
+            } else {
+                ByteArray(0)
+            }
+            return WebResourceResponse(
+                mimeType,
+                "UTF-8",
+                200,
+                "OK",
+                mapOf("Cache-Control" to "no-store"),
+                ByteArrayInputStream(pixel)
+            )
+        }
+
+        // Para documento de anúncio, avisa o pai para remover o iframe vazio.
         val html = """
             <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
             <style>html,body{display:none!important;width:0!important;height:0!important;margin:0!important;padding:0!important}</style>
