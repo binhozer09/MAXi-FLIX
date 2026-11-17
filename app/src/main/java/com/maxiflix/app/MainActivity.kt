@@ -1,8 +1,12 @@
 package com.maxiflix.app
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageInfo
 import android.net.Uri
+import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
 import android.os.Message
@@ -26,6 +30,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import org.json.JSONObject
 import java.io.File
 import java.io.ByteArrayInputStream
@@ -60,6 +65,22 @@ class MainActivity : AppCompatActivity() {
     private var pendingInstallAfterPermission = false
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    private var dnsReceiverRegistered = false
+    private var siteLoadStarted = false
+
+    private val dnsReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            when (intent?.action) {
+                CloudflareDnsVpnService.ACTION_DNS_READY -> loadSiteAndCheckUpdates()
+                CloudflareDnsVpnService.ACTION_DNS_FAILED -> {
+                    val reason = intent.getStringExtra("reason")
+                        ?: "Não foi possível ativar o DNS Cloudflare."
+                    Toast.makeText(this@MainActivity, reason, Toast.LENGTH_LONG).show()
+                    loadSiteAndCheckUpdates()
+                }
+            }
+        }
+    }
 
     companion object {
         private const val TAG = "MAXI_FLIX"
@@ -68,6 +89,7 @@ class MainActivity : AppCompatActivity() {
             "https://api.github.com/repos/binhozer09/MAXi-FLIX/releases/latest"
         private const val APK_ASSET_NAME = "MAXi-FLIX.apk"
         private const val MANIFEST_ASSET_NAME = "update.json"
+        private const val REQUEST_DNS_PERMISSION = 4102
         private val BLOCKED_AD_DOMAINS = setOf(
             "doubleclick.net",
             "googlesyndication.com",
@@ -124,8 +146,76 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        registerDnsReceiver()
+        startDnsProtection()
+    }
+
+    private fun registerDnsReceiver() {
+        val filter = IntentFilter().apply {
+            addAction(CloudflareDnsVpnService.ACTION_DNS_READY)
+            addAction(CloudflareDnsVpnService.ACTION_DNS_FAILED)
+        }
+
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(dnsReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(dnsReceiver, filter)
+        }
+        dnsReceiverRegistered = true
+    }
+
+    private fun startDnsProtection() {
+        val permissionIntent = VpnService.prepare(this)
+        if (permissionIntent == null) {
+            startDnsService()
+            return
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("DNS automático")
+            .setMessage(
+                "Para abrir o site sem alterar o DNS do Wi-Fi, o MAXi-FLIX usará " +
+                    "a Cloudflare 1.1.1.1 somente neste aplicativo. O Android vai " +
+                    "pedir autorização para criar uma conexão VPN local."
+            )
+            .setNegativeButton("Continuar sem DNS") { _, _ ->
+                loadSiteAndCheckUpdates()
+            }
+            .setPositiveButton("Ativar DNS") { _, _ ->
+                startActivityForResult(permissionIntent, REQUEST_DNS_PERMISSION)
+            }
+            .setCancelable(false)
+            .show()
+    }
+
+    private fun startDnsService() {
+        val serviceIntent = Intent(this, CloudflareDnsVpnService::class.java)
+        ContextCompat.startForegroundService(this, serviceIntent)
+    }
+
+    private fun loadSiteAndCheckUpdates() {
+        if (siteLoadStarted || isFinishing) return
+        siteLoadStarted = true
         siteWeb.loadUrl(SITE_URL)
         siteWeb.postDelayed({ checkForUpdates(showLatestMessage = false) }, 2500L)
+    }
+
+    @Deprecated("Deprecated in Android API, retained for compatibility with VPN consent flow")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_DNS_PERMISSION) return
+
+        if (resultCode == RESULT_OK) {
+            startDnsService()
+        } else {
+            Toast.makeText(
+                this,
+                "DNS automático não foi autorizado. O site tentará abrir com a rede atual.",
+                Toast.LENGTH_LONG
+            ).show()
+            loadSiteAndCheckUpdates()
+        }
     }
 
     private fun configureWebView() {
@@ -694,6 +784,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (customView != null) hideFullscreenView()
+        if (dnsReceiverRegistered) {
+            runCatching { unregisterReceiver(dnsReceiver) }
+            dnsReceiverRegistered = false
+        }
         worker.shutdownNow()
         if (::siteWeb.isInitialized) siteWeb.destroy()
         super.onDestroy()
