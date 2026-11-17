@@ -691,6 +691,77 @@ class MainActivity : AppCompatActivity() {
                   console.log('MAXIFLIX_FLOATING_SCAN ' +
                     JSON.stringify({scanned: scanned, found: found, url: location.pathname}));
                 }
+                // Diagnóstico específico para anúncios flutuantes animados (ex.: selo/ícone "AI").
+                // Apenas registra candidatos: não remove nem oculta elementos nesta rotina.
+                function scanAnimatedFloatingElements() {
+                  try {
+                    const nodes = document.querySelectorAll('body *');
+                    let logged = 0;
+                    for (let i = 0; i < nodes.length && i < 3000 && logged < 12; i++) {
+                      const node = nodes[i];
+                      if (!node || node === document.body ||
+                          node.matches('script,style,noscript,video,audio,source')) continue;
+                      const style = getComputedStyle(node);
+                      if (style.display === 'none' || style.visibility === 'hidden' ||
+                          Number(style.opacity) === 0) continue;
+                      const rect = node.getBoundingClientRect();
+                      const w = Math.round(rect.width), h = Math.round(rect.height);
+                      if (w < 16 || h < 16 || w > innerWidth * 0.75 ||
+                          h > innerHeight * 0.75 || rect.bottom < 0 || rect.right < 0 ||
+                          rect.top > innerHeight || rect.left > innerWidth) continue;
+                      const position = style.position;
+                      const z = Number.parseInt(style.zIndex || '0', 10) || 0;
+                      const animation = style.animationName || 'none';
+                      const duration = style.animationDuration || '0s';
+                      const hasAnimation = animation !== 'none' ||
+                        (duration !== '0s' && duration !== '0ms') ||
+                        (node.getAnimations && node.getAnimations().length > 0);
+                      const text = String(node.innerText || node.textContent ||
+                        node.getAttribute('aria-label') || node.getAttribute('title') || '')
+                        .replace(/\\s+/g, ' ').trim().slice(0, 100);
+                      const attrs = [
+                        node.id || '', typeof node.className === 'string' ? node.className : '',
+                        node.getAttribute('aria-label') || '', node.getAttribute('title') || '',
+                        node.getAttribute('alt') || '', text
+                      ].join(' ');
+                      const hasAI = /(^|[^a-z0-9])ai([^a-z0-9]|$)/i.test(attrs);
+                      const floating = position === 'fixed' || position === 'sticky' ||
+                        (position === 'absolute' && z >= 10);
+                      const transformed = style.transform && style.transform !== 'none';
+                      if (!(hasAI || (hasAnimation && (floating || z >= 10 || transformed)))) continue;
+                      const media = node.matches('img,iframe,svg,canvas') ?
+                        (node.getAttribute('src') || node.getAttribute('href') || '') :
+                        ((node.querySelector('img[src],iframe[src],svg,canvas') || {}).getAttribute
+                          ? ((node.querySelector('img[src],iframe[src]') || {}).getAttribute('src') || '')
+                          : '');
+                      const fingerprint = [
+                        node.tagName, node.id || '',
+                        typeof node.className === 'string' ? node.className : '',
+                        w + 'x' + h, position, animation, text
+                      ].join('|').slice(0, 220);
+                      window.__maxiflixAnimatedFloatSeen =
+                        window.__maxiflixAnimatedFloatSeen || new Set();
+                      if (window.__maxiflixAnimatedFloatSeen.has(fingerprint)) continue;
+                      window.__maxiflixAnimatedFloatSeen.add(fingerprint);
+                      console.log('MAXIFLIX_ANIMATED_FLOAT_CANDIDATE ' + JSON.stringify({
+                        tag: node.tagName,
+                        id: String(node.id || '').slice(0, 100),
+                        className: String(typeof node.className === 'string' ? node.className : '').slice(0, 140),
+                        text: text, hasAI: hasAI, position: position, zIndex: style.zIndex,
+                        width: w, height: h, top: Math.round(rect.top), left: Math.round(rect.left),
+                        animationName: animation, animationDuration: duration,
+                        animationPlayState: style.animationPlayState,
+                        transform: style.transform, transition: style.transition,
+                        media: String(media || '').slice(0, 180),
+                        link: node.closest('a[href]') ? String(node.closest('a[href]').href).split('?')[0].slice(0, 180) : ''
+                      }));
+                      logged++;
+                    }
+                  } catch (error) {
+                    console.log('MAXIFLIX_ANIMATED_FLOAT_SCAN_ERROR ' +
+                      String(error && error.message || error).slice(0, 180));
+                  }
+                }
                 function removeAdOverlays(root) {
                   const scope = root && root.querySelectorAll ? root : document;
                   const candidates = new Set();
@@ -842,6 +913,7 @@ class MainActivity : AppCompatActivity() {
                 cleanAdFrames(document);
                 removeAdOverlays(document);
                 reportFloatingElements();
+                scanAnimatedFloatingElements();
                 if (!window.__maxiflixAdObserver && document.documentElement) {
                   window.__maxiflixAdObserver = new MutationObserver(function(records) {
                     records.forEach(function(record) {
@@ -872,6 +944,7 @@ class MainActivity : AppCompatActivity() {
                       removeAdOverlays(document);
                       cleanAdFrames(document);
                       reportFloatingElements();
+                      scanAnimatedFloatingElements();
                     }, 1500);
                 }
                 const styleId = 'maxiflix-ad-cleanup';
