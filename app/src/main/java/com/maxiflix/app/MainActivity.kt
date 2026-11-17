@@ -751,13 +751,13 @@ class MainActivity : AppCompatActivity() {
             val uri = Uri.parse(raw)
             val host = uri.host ?: "(sem host)"
             val path = uri.encodedPath.orEmpty().take(180)
-            "\${uri.scheme}://$host$path"
+            "${uri.scheme}://$host$path"
         }.getOrDefault("(URL inválida)")
     }
 
     private fun logDiagnostic(event: String, detail: String) {
         val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
-        val line = "$stamp | $event | \${detail.replace('\n', ' ').take(500)}"
+        val line = "$stamp | $event | ${detail.replace('\n', ' ').take(500)}"
         synchronized(diagnosticLock) {
             diagnosticLogs.addLast(line)
             while (diagnosticLogs.size > 400) diagnosticLogs.removeFirst()
@@ -769,10 +769,10 @@ class MainActivity : AppCompatActivity() {
         val report = synchronized(diagnosticLock) {
             buildString {
                 appendLine("MAXi-FLIX — RELATÓRIO DE DIAGNÓSTICO")
-                appendLine("Versão: \${BuildConfig.VERSION_NAME} (\${BuildConfig.VERSION_CODE})")
-                appendLine("Android: \${Build.VERSION.RELEASE} / SDK \${Build.VERSION.SDK_INT}")
-                appendLine("Página atual: \${safeUrl(siteWeb.url)}")
-                appendLine("Eventos registrados: \${diagnosticLogs.size}")
+                appendLine("Versão: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                appendLine("Android: ${Build.VERSION.RELEASE} / SDK ${Build.VERSION.SDK_INT}")
+                appendLine("Página atual: ${safeUrl(siteWeb.url)}")
+                appendLine("Eventos registrados: ${diagnosticLogs.size}")
                 appendLine("URLs sem parâmetros de consulta; cookies e cabeçalhos privados não são coletados.")
                 appendLine("--- EVENTOS ---")
                 diagnosticLogs.forEach { appendLine(it) }
@@ -785,7 +785,7 @@ class MainActivity : AppCompatActivity() {
                 val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                 clipboard.setPrimaryClip(ClipData.newPlainText("MAXi-FLIX diagnóstico", report))
                 Toast.makeText(this, "Relatório copiado. Cole aqui na conversa.", Toast.LENGTH_LONG).show()
-                logDiagnostic("REPORT_COPIED", "events=\${diagnosticLogs.size}")
+                logDiagnostic("REPORT_COPIED", "events=${diagnosticLogs.size}")
             }
             .setNeutralButton("Limpar logs") { _, _ ->
                 synchronized(diagnosticLock) { diagnosticLogs.clear() }
