@@ -426,7 +426,7 @@ class MainActivity : AppCompatActivity() {
             (function() {
               try {
                 document.title = 'MAXi-FLIX';
-                const brand = /rede\\s*de\\s*canais(?:\\s*\\.?\\s*in)?/i;
+                const brand = /rede\s*de\s*canais(?:\s*\\.?\s*in)?/i;
                 const styleId = 'maxiflix-hide-site-brand';
                 if (!document.getElementById(styleId)) {
                   const style = document.createElement('style');
@@ -447,7 +447,7 @@ class MainActivity : AppCompatActivity() {
                 let node, checked = 0;
                 while ((node = walker.nextNode()) && checked < 3500) {
                   checked++;
-                  const value = (node.nodeValue || '').replace(/\\s+/g, ' ').trim();
+                  const value = (node.nodeValue || '').replace(/\s+/g, ' ').trim();
                   if (!value || value.length > 70 || !brand.test(value)) continue;
                   let el = node.parentElement;
                   if (!el) continue;
