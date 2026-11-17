@@ -59,6 +59,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateButton: Button
     private lateinit var updateProgress: ProgressBar
     private lateinit var updateStatus: TextView
+    private lateinit var backButton: Button
+    private lateinit var forwardButton: Button
 
     private val worker = Executors.newSingleThreadExecutor()
     private val updateBusy = AtomicBoolean(false)
@@ -135,6 +137,16 @@ class MainActivity : AppCompatActivity() {
         updateButton = findViewById(R.id.updateButton)
         updateProgress = findViewById(R.id.updateProgress)
         updateStatus = findViewById(R.id.updateStatus)
+        backButton = findViewById(R.id.backButton)
+        forwardButton = findViewById(R.id.forwardButton)
+
+        backButton.setOnClickListener {
+            if (siteWeb.canGoBack()) siteWeb.goBack()
+        }
+        forwardButton.setOnClickListener {
+            if (siteWeb.canGoForward()) siteWeb.goForward()
+        }
+        updateNavigationButtons()
 
         cleanupInstalledUpdate()
         configureWebView()
@@ -238,6 +250,15 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(siteWeb, true)
 
         siteWeb.webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                updateNavigationButtons()
+            }
+
+            override fun onPageFinished(view: WebView?, url: String?) {
+                hideSiteBranding()
+                updateNavigationButtons()
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest
@@ -301,6 +322,68 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         }
+    }
+
+    private fun hideSiteBranding() {
+        val script = """
+            (function() {
+              const pattern = /rede\\s*(?:de\\s*)?canais(?:\\s*\\.?\\s*in)?/i;
+              function hideBranding() {
+                try {
+                  document.title = 'MAXi-FLIX';
+                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label]').forEach(function(el) {
+                    const label = [
+                      el.getAttribute('alt'),
+                      el.getAttribute('title'),
+                      el.getAttribute('aria-label')
+                    ].filter(Boolean).join(' ');
+                    if (pattern.test(label)) {
+                      el.style.setProperty('display', 'none', 'important');
+                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
+                        el.parentElement.style.setProperty('display', 'none', 'important');
+                      }
+                    }
+                  });
+                  document.querySelectorAll('body *').forEach(function(el) {
+                    if (el.children.length !== 0) return;
+                    const label = (el.textContent || '').trim();
+                    if (label.length > 0 && label.length < 80 && pattern.test(label)) {
+                      let target = el;
+                      const parent = el.parentElement;
+                      if (parent && parent.children.length <= 2 &&
+                          parent.textContent.trim().length < 100 &&
+                          pattern.test(parent.textContent)) {
+                        target = parent;
+                      }
+                      target.style.setProperty('display', 'none', 'important');
+                    }
+                  });
+                } catch (e) {}
+              }
+              hideBranding();
+              if (!window.__maxiflixBrandingObserver && document.documentElement) {
+                window.__maxiflixBrandingObserver = new MutationObserver(hideBranding);
+                window.__maxiflixBrandingObserver.observe(document.documentElement, {
+                  childList: true,
+                  subtree: true,
+                  characterData: true
+                });
+              }
+            })();
+        """.trimIndent()
+        siteWeb.evaluateJavascript(script, null)
+    }
+
+    private fun updateNavigationButtons() {
+        if (!::siteWeb.isInitialized || !::backButton.isInitialized ||
+            !::forwardButton.isInitialized) return
+
+        val canGoBack = siteWeb.canGoBack()
+        val canGoForward = siteWeb.canGoForward()
+        backButton.isEnabled = canGoBack
+        forwardButton.isEnabled = canGoForward
+        backButton.alpha = if (canGoBack) 1f else 0.45f
+        forwardButton.alpha = if (canGoForward) 1f else 0.45f
     }
 
     private fun isAllowedMainFrameUrl(uri: Uri): Boolean {
