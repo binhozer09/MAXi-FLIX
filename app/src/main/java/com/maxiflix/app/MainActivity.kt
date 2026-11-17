@@ -450,7 +450,14 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val uri = request.url
-                if (isBlockedAdHost(uri)) { logDiagnostic("BLOCK_NAVIGATION", safeUrl(uri.toString())); return true }
+                if (isBlockedAdHost(uri)) {
+                    logDiagnostic("BLOCK_NAVIGATION", safeUrl(uri.toString()))
+                    return true
+                }
+                if (request.isForMainFrame && !isAllowedMainFrameUrl(uri)) {
+                    logDiagnostic("BLOCK_EXTERNAL_MAIN_FRAME", safeUrl(uri.toString()))
+                    return true
+                }
                 logDiagnostic("NAVIGATION", "mainFrame=${request.isForMainFrame}; ${safeUrl(uri.toString())}")
 
                 val scheme = uri.scheme?.lowercase(Locale.ROOT)
@@ -462,7 +469,14 @@ class MainActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
                     ?: return true
-                if (isBlockedAdHost(uri)) { logDiagnostic("BLOCK_NAVIGATION_LEGACY", safeUrl(uri.toString())); return true }
+                if (isBlockedAdHost(uri)) {
+                    logDiagnostic("BLOCK_NAVIGATION_LEGACY", safeUrl(uri.toString()))
+                    return true
+                }
+                if (!isAllowedMainFrameUrl(uri)) {
+                    logDiagnostic("BLOCK_EXTERNAL_MAIN_FRAME_LEGACY", safeUrl(uri.toString()))
+                    return true
+                }
                 logDiagnostic("NAVIGATION_LEGACY", safeUrl(uri.toString()))
                 val scheme = uri.scheme?.lowercase(Locale.ROOT)
                 return scheme != "http" && scheme != "https"
@@ -646,7 +660,7 @@ class MainActivity : AppCompatActivity() {
                   });
                 }
                 if (!window.__maxiflixPopupGuard) {
-                  window.__maxiflixPopupGuard = true;\n                  window.open = function() { return null; };
+                  window.__maxiflixPopupGuard = true;
                   window.open = function() { return null; };
                   window.addEventListener('click', function(event) {
                     const link = event.target && event.target.closest
@@ -681,7 +695,8 @@ class MainActivity : AppCompatActivity() {
                     });
                   }, false);
                 }
-                cleanAdFrames(document);\n                removeAdOverlays(document);
+                cleanAdFrames(document);
+                removeAdOverlays(document);
                 if (!window.__maxiflixAdObserver && document.documentElement) {
                   window.__maxiflixAdObserver = new MutationObserver(function(records) {
                     records.forEach(function(record) {
@@ -691,7 +706,8 @@ class MainActivity : AppCompatActivity() {
                               isAdUrl(node.getAttribute('src') || node.src || '')) {
                             node.remove();
                           } else {
-                            cleanAdFrames(node);\n                            removeAdOverlays(node);
+                            cleanAdFrames(node);
+                            removeAdOverlays(node);
                           }
                         }
                       });
