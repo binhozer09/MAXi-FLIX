@@ -489,7 +489,7 @@ class MainActivity : AppCompatActivity() {
 
         siteWeb.webChromeClient = object : WebChromeClient() {
             override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
-                message?.let { logDiagnostic("JS_CONSOLE", "${it.messageLevel()}: ${it.message().take(240)} (${safeUrl(it.sourceId())}:${it.lineNumber()})") }
+                message?.let { logDiagnostic("JS_CONSOLE", "${it.messageLevel()}: ${it.message().take(900)} (${safeUrl(it.sourceId())}:${it.lineNumber()})") }
                 return super.onConsoleMessage(message)
             }
 
@@ -887,7 +887,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun logDiagnostic(event: String, detail: String) {
         val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
-        val line = "$stamp | $event | ${detail.replace('\n', ' ').take(500)}"
+        val line = "$stamp | $event | ${detail.replace('\n', ' ').take(1000)}"
         synchronized(diagnosticLock) {
             diagnosticLogs.addLast(line)
             while (diagnosticLogs.size > 400) diagnosticLogs.removeFirst()
