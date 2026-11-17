@@ -1,3 +1,4 @@
 Trigger final MAXi-FLIX 1.7.0 build after all release changes.
 Build trigger refreshed.
 Fallback loading patch included.
+Fullscreen video sizing patch included.
