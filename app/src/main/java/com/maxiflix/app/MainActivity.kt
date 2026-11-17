@@ -197,7 +197,8 @@ class MainActivity : AppCompatActivity() {
             "onelink.me", "linksynergy.com", "awin1.com", "impact.com",
             "redirectingat.com", "linkvertise.com", "loot-link.com",
             "lootlinks.co", "ouo.io", "ouo.press", "shorte.st",
-            "acidaldimin.qpon", "mywondertrip.com"
+            "acidaldimin.qpon", "mywondertrip.com",
+            "connatix.com", "pmbmonetize.live"
         )
     }
 
@@ -592,6 +593,7 @@ class MainActivity : AppCompatActivity() {
               try {
                 const blocked = [
                   'shopee.com','shopee.com.br','shope.ee','appsflyer.com',
+                  'connatix.com','pmbmonetize.live',
                   'doubleclick.net','googlesyndication.com','googleadservices.com',
                   'popads.net','popcash.net','propellerads.com','adsterra.com',
                   'exoclick.com','exosrv.com','trafficstars.com','tsyndicate.com',
