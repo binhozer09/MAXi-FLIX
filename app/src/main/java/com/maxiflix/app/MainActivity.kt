@@ -497,8 +497,7 @@ class MainActivity : AppCompatActivity() {
                 view: View?,
                 callback: CustomViewCallback?
             ) {
-                if (view == null || callback == null) return
-                showFullscreenView(view, callback)
+                if (view == null || callback == null) return                showFullscreenView(view, callback)
             }
 
             override fun onHideCustomView() {
@@ -652,36 +651,67 @@ class MainActivity : AppCompatActivity() {
                 }
                 function removeAdOverlays(root) {
                   const scope = root && root.querySelectorAll ? root : document;
+                  const candidates = new Set();
+                  if (scope !== document && scope.nodeType === 1) {
+                    candidates.add(scope);
+                    let ancestor = scope.parentElement;
+                    let depth = 0;
+                    while (ancestor && ancestor !== document.body &&
+                           ancestor !== document.documentElement && depth++ < 4) {
+                      candidates.add(ancestor);
+                      ancestor = ancestor.parentElement;
+                    }
+                  }
+                  scope.querySelectorAll('[id],[class],[data-ad],[aria-label],iframe,img,a').forEach(function(node) {
+                    candidates.add(node);
+                  });
                   const markers = /(^|[-_\\s])(ad|ads|advert|advertisement|popup|popunder|interstitial|sponsor)([-_\\s]|$)/i;
-                  const nodes = scope.querySelectorAll(
-                    '[id],[class],[data-ad],[aria-label]'
-                  );
-                  nodes.forEach(function(node) {
-                    if (!node || node === document.body || node === document.documentElement) return;
-                    if (node.matches('video,audio,source,button,[role="button"]')) return;
+                  candidates.forEach(function(node) {
+                    if (!node || node.nodeType !== 1 ||
+                        node === document.body || node === document.documentElement) return;
+                    if (node.matches('video,audio,source,button,[role="button"],nav,header,footer')) return;
                     if (node.querySelector('video,audio,[class*="player" i],[id*="player" i]')) return;
                     const identity = [
                       node.id || '', typeof node.className === 'string' ? node.className : '',
                       node.getAttribute('data-ad') || '', node.getAttribute('aria-label') || ''
                     ].join(' ');
-                    if (!markers.test(identity)) return;
+                    const semanticAd = markers.test(identity) ||
+                      /anúncio|publicidade|advertisement|patrocinado/i.test(
+                        node.getAttribute('aria-label') || ''
+                      );
                     const rect = node.getBoundingClientRect();
-                    const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+                    const width = Math.max(0, rect.width);
+                    const height = Math.max(0, rect.height);
+                    const area = width * height;
                     const viewport = Math.max(1, innerWidth * innerHeight);
                     const style = getComputedStyle(node);
+                    const positioned = style.position === 'fixed' ||
+                      style.position === 'absolute' || style.position === 'sticky';
                     const elevated = Number.parseInt(style.zIndex || '0', 10) > 0;
+                    if (!positioned || !elevated || width < innerWidth * 0.18 ||
+                        height < 32 || height > innerHeight * 0.55) return;
+                    const nearEdge = rect.bottom >= innerHeight * 0.55 ||
+                      rect.top <= innerHeight * 0.30;
+                    if (!nearEdge) return;
+                    const media = Array.from(node.querySelectorAll('iframe[src],img[src],a[href]'));
+                    const adMedia = media.some(function(child) {
+                      const value = child.getAttribute('src') || child.getAttribute('href') || '';
+                      if (isAdUrl(value)) return true;
+                      try {
+                        const host = new URL(value, location.href).hostname.toLowerCase();
+                        return host && host !== location.hostname &&
+                          (child.tagName === 'IFRAME' || child.tagName === 'IMG');
+                      } catch (_) { return false; }
+                    });
+                    const adCopy = /anúncio|publicidade|patrocinado|saiba mais|clique aqui/i
+                      .test((node.textContent || '').slice(0, 500));
+                    const hasClose = !!node.querySelector(
+                      '[aria-label*="fechar" i],[title*="fechar" i],.close,.fechar,[class*="close" i]'
+                    );
+                    const floatingAd = semanticAd || adMedia || (adCopy && hasClose);
                     const coversScreen = area > viewport * 0.30 &&
-                      (style.position === 'fixed' || style.position === 'absolute' ||
-                       rect.width > innerWidth * 0.85 || rect.height > innerHeight * 0.65);
-                    // Banners flutuantes menores costumam ficar presos no rodapé ou topo.
-                    // Só remove quando a identidade já foi marcada como publicidade.
-                    const floatingBanner =
-                      (style.position === 'fixed' || style.position === 'absolute' ||
-                       style.position === 'sticky') &&
-                      elevated && rect.width >= innerWidth * 0.25 &&
-                      rect.height >= 36 && rect.height <= innerHeight * 0.45 &&
-                      (rect.bottom >= innerHeight * 0.55 || rect.top <= innerHeight * 0.25);
-                    if (!coversScreen && !floatingBanner) return;
+                      (style.position === 'fixed' || style.position === 'absolute');
+                    if (!floatingAd && !coversScreen) return;
                     node.remove();
                   });
                 }
@@ -997,8 +1027,7 @@ class MainActivity : AppCompatActivity() {
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         customView = null
 
-        val orientationToRestore = previousRequestedOrientation
-        previousRequestedOrientation = null
+        val orientationToRestore = previousRequestedOrientation        previousRequestedOrientation = null
         if (orientationToRestore != null) requestedOrientation = orientationToRestore
 
         val callback = customViewCallback
