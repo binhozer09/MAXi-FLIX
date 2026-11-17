@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - "maxiflix-v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Tag da versão que será publicada"
+        required: true
+        default: "maxiflix-v1.5.0"
+        type: string
 
 permissions:
   contents: write
@@ -93,7 +100,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ github.ref_name }}
+          name: MAXi-FLIX ${{ inputs.tag_name || github.ref_name }}
+          tag_name: ${{ inputs.tag_name || github.ref_name }}
+          target_commitish: main
           generate_release_notes: true
           files: |
             release/MAXi-FLIX.apk
