@@ -122,7 +122,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "Atualização do MAXi-FLIX."
+              "releaseNotes": "Cache local persistente, preservação da sessão e recuperação offline."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
