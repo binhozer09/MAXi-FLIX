@@ -835,23 +835,20 @@ class MainActivity : AppCompatActivity() {
                       rect.top <= innerHeight * 0.35;
                     if (!nearEdge && !elevated && !semanticAd) return;
                     const media = Array.from(node.querySelectorAll('iframe[src],img[src],a[href]'));
+                    // Um iframe externo pode ser o próprio player. Só considerar mídia
+                    // como anúncio quando o domínio/caminho estiver na lista explícita.
                     const adMedia = media.some(function(child) {
                       const value = child.getAttribute('src') || child.getAttribute('href') || '';
-                      if (isAdUrl(value)) return true;
-                      try {
-                        const host = new URL(value, location.href).hostname.toLowerCase();
-                        return host && host !== location.hostname &&
-                          (child.tagName === 'IFRAME' || child.tagName === 'IMG');
-                      } catch (_) { return false; }
+                      return isAdUrl(value);
                     });
                     const adCopy = /anúncio|publicidade|patrocinado|saiba mais|clique aqui/i
                       .test((node.textContent || '').slice(0, 500));
                     const hasClose = !!node.querySelector(
                       '[aria-label*="fechar" i],[title*="fechar" i],.close,.fechar,[class*="close" i]'
                     );
+                    // Tamanho/posição, sozinhos, não provam que algo é anúncio:
+                    // players incorporados frequentemente ocupam grande parte da tela.
                     const floatingAd = semanticAd || adMedia || (adCopy && hasClose);
-                    const coversScreen = area > viewport * 0.30 &&
-                      (style.position === 'fixed' || style.position === 'absolute');
                     const fingerprint = [
                       node.tagName, node.id || '',
                       typeof node.className === 'string' ? node.className : '',
@@ -878,9 +875,9 @@ class MainActivity : AppCompatActivity() {
                         media: mediaUrl, fingerprint: fingerprint
                       }));
                     }
-                    if (!floatingAd && !coversScreen) return;
+                    if (!floatingAd) return;
                     console.log('MAXIFLIX_OVERLAY_REMOVED ' + fingerprint +
-                      ' reason=' + (semanticAd ? 'semantic' : adMedia ? 'external-media' : adCopy && hasClose ? 'ad-copy-close' : 'large-overlay'));
+                      ' reason=' + (semanticAd ? 'semantic' : adMedia ? 'known-ad-url' : 'ad-copy-close'));
                     node.remove();
                   });
                 }
