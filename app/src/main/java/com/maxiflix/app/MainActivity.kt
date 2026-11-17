@@ -291,6 +291,7 @@ class MainActivity : AppCompatActivity() {
                     .edit().putString("last_page_url", lastUrl).apply() }
                 CookieManager.getInstance().flush()
                 hideSiteBranding()
+                applyFullscreenVideoSizing()
                 hide1WinAds()
                 updateNavigationButtons()
             }
@@ -376,6 +377,52 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         }
+    }
+
+    private fun applyFullscreenVideoSizing() {
+        val script = """
+            (function() {
+              if (window.__maxiflixVideoFitInstalled) return;
+              window.__maxiflixVideoFitInstalled = true;
+              const styleId = 'maxiflix-fullscreen-video-fit';
+              function installStyle(doc) {
+                try {
+                  if (!doc || doc.getElementById(styleId)) return;
+                  const style = doc.createElement('style');
+                  style.id = styleId;
+                  style.textContent = `
+                    video:fullscreen, video:-webkit-full-screen {
+                      width: 100vw !important;
+                      height: 100vh !important;
+                      max-width: 100vw !important;
+                      max-height: 100vh !important;
+                      object-fit: cover !important;
+                      background: #000 !important;
+                    }
+                    :fullscreen video, :-webkit-full-screen video {
+                      width: 100% !important;
+                      height: 100% !important;
+                      object-fit: cover !important;
+                    }
+                  `;
+                  (doc.head || doc.documentElement).appendChild(style);
+                } catch (_) {}
+              }
+              function scan() {
+                installStyle(document);
+                document.querySelectorAll('iframe').forEach(function(frame) {
+                  try { installStyle(frame.contentDocument); } catch (_) {}
+                });
+              }
+              scan();
+              document.addEventListener('fullscreenchange', scan, true);
+              document.addEventListener('webkitfullscreenchange', scan, true);
+              new MutationObserver(scan).observe(document.documentElement, {
+                childList: true, subtree: true
+              });
+            })();
+        """.trimIndent()
+        siteWeb.evaluateJavascript(script, null)
     }
 
     private fun hideSiteBranding() {
