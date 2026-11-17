@@ -200,7 +200,8 @@ class MainActivity : AppCompatActivity() {
             "redirectingat.com", "linkvertise.com", "loot-link.com",
             "lootlinks.co", "ouo.io", "ouo.press", "shorte.st",
             "acidaldimin.qpon", "mywondertrip.com",
-            "connatix.com", "pmbmonetize.live"
+            "connatix.com", "pmbmonetize.live",
+            "ribsiuds.qpon", "slubplenism.com", "subduepaler.cyou"
         )
     }
 
