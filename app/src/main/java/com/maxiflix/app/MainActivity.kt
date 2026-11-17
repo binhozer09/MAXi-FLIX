@@ -13,6 +13,7 @@ import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -27,6 +28,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import org.json.JSONObject
 import java.io.File
+import java.io.ByteArrayInputStream
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -66,6 +68,38 @@ class MainActivity : AppCompatActivity() {
             "https://api.github.com/repos/binhozer09/MAXi-FLIX/releases/latest"
         private const val APK_ASSET_NAME = "MAXi-FLIX.apk"
         private const val MANIFEST_ASSET_NAME = "update.json"
+        private val BLOCKED_AD_DOMAINS = setOf(
+            "doubleclick.net",
+            "googlesyndication.com",
+            "googleadservices.com",
+            "googletagservices.com",
+            "adservice.google.com",
+            "adnxs.com",
+            "adform.net",
+            "taboola.com",
+            "outbrain.com",
+            "criteo.com",
+            "pubmatic.com",
+            "openx.net",
+            "rubiconproject.com",
+            "casalemedia.com",
+            "smartadserver.com",
+            "adroll.com",
+            "amazon-adsystem.com",
+            "popads.net",
+            "popcash.net",
+            "propellerads.com",
+            "adsterra.com",
+            "exoclick.com",
+            "trafficjunky.net",
+            "juicyads.com",
+            "hilltopads.net",
+            "onclickads.net",
+            "onclickalgo.com",
+            "mgid.com",
+            "revcontent.com",
+            "adskeeper.co.uk"
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,18 +147,36 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(siteWeb, true)
 
         siteWeb.webViewClient = object : WebViewClient() {
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                request: WebResourceRequest
+            ): WebResourceResponse? {
+                if (isBlockedAdHost(request.url)) return blockedAdResponse()
+                return super.shouldInterceptRequest(view, request)
+            }
+
+            override fun shouldInterceptRequest(
+                view: WebView?,
+                url: String?
+            ): WebResourceResponse? {
+                val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
+                if (uri != null && isBlockedAdHost(uri)) return blockedAdResponse()
+                return super.shouldInterceptRequest(view, url)
+            }
+
             override fun shouldOverrideUrlLoading(
                 view: WebView?,
                 request: WebResourceRequest
             ): Boolean {
+                if (isBlockedAdHost(request.url)) return true
                 val scheme = request.url.scheme?.lowercase(Locale.ROOT)
                 return scheme != "http" && scheme != "https"
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
-                val scheme = runCatching {
-                    Uri.parse(url.orEmpty()).scheme?.lowercase(Locale.ROOT)
-                }.getOrNull()
+                val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
+                if (uri != null && isBlockedAdHost(uri)) return true
+                val scheme = uri?.scheme?.lowercase(Locale.ROOT)
                 return scheme != "http" && scheme != "https"
             }
         }
@@ -151,6 +203,24 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         }
+    }
+
+    private fun isBlockedAdHost(uri: Uri): Boolean {
+        val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+        return BLOCKED_AD_DOMAINS.any { domain ->
+            host == domain || host.endsWith(".$domain")
+        }
+    }
+
+    private fun blockedAdResponse(): WebResourceResponse {
+        return WebResourceResponse(
+            "text/plain",
+            "UTF-8",
+            204,
+            "No Content",
+            emptyMap(),
+            ByteArrayInputStream(ByteArray(0))
+        )
     }
 
     private fun showFullscreenView(
