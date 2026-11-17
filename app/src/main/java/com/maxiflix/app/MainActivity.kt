@@ -99,6 +99,18 @@ class MainActivity : AppCompatActivity() {
         private const val REQUEST_DNS_PERMISSION = 4102
         private val BLOCKED_AD_DOMAINS = setOf(
             "doubleclick.net",
+            "pagead2.googlesyndication.com",
+            "ads.google.com",
+            "adservice.google.com",
+            "ads.yahoo.com",
+            "adsafeprotected.com",
+            "adkernel.com",
+            "admanmedia.com",
+            "ad-maven.com",
+            "adcash.com",
+            "adf.ly",
+            "adclick.g.doubleclick.net",
+            "adclick.g.doubleclick.net",
             "googlesyndication.com",
             "googleadservices.com",
             "googletagservices.com",
@@ -408,18 +420,42 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun hideSiteBranding() {
-        // Busca limitada a elementos de marca; não percorre body* nem instala
-        // MutationObserver, que disparava varreduras completas a cada clique.
+        // Oculta a marca do site tanto no título quanto nos textos e logotipos visíveis.
+        // Varredura única e limitada: sem MutationObserver nem tarefas repetidas no clique.
         val script = """
             (function() {
               try {
                 document.title = 'MAXi-FLIX';
-                const pattern = /rede\\s*(?:de\\s*)?canais(?:\\s*\\.?\\s*in)?/i;
-                document.querySelectorAll('img[alt],img[title],a[title],*[aria-label]').forEach(function(el) {
-                  const label = [el.getAttribute('alt'), el.getAttribute('title'),
-                    el.getAttribute('aria-label')].filter(Boolean).join(' ');
-                  if (pattern.test(label)) el.style.setProperty('display','none','important');
-                });
+                const brand = /rede\\s*de\\s*canais(?:\\s*\\.?\\s*in)?/i;
+                const styleId = 'maxiflix-hide-site-brand';
+                if (!document.getElementById(styleId)) {
+                  const style = document.createElement('style');
+                  style.id = styleId;
+                  style.textContent = [
+                    'a[href*="redecanais" i] img',
+                    'img[alt*="redecanais" i]',
+                    'img[alt*="rede de canais" i]',
+                    '[class*="logo" i] img[alt*="rede" i]',
+                    '[class*="site-brand" i]'
+                  ].join(',') + '{display:none!important;visibility:hidden!important}';
+                  (document.head || document.documentElement).appendChild(style);
+                }
+                const walker = document.createTreeWalker(
+                  document.body || document.documentElement,
+                  NodeFilter.SHOW_TEXT
+                );
+                let node, checked = 0;
+                while ((node = walker.nextNode()) && checked < 3500) {
+                  checked++;
+                  const value = (node.nodeValue || '').replace(/\\s+/g, ' ').trim();
+                  if (!value || value.length > 70 || !brand.test(value)) continue;
+                  let el = node.parentElement;
+                  if (!el) continue;
+                  const target = el.closest('a,span,h1,h2,h3,p,small,strong,div') || el;
+                  if ((target.textContent || '').trim().length <= 90) {
+                    target.style.setProperty('display', 'none', 'important');
+                  }
+                }
               } catch (_) {}
             })();
         """.trimIndent()
@@ -428,14 +464,45 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun hide1WinAds() {
-        // Remoção pontual de anúncios conhecidos, sem varredura global/observer.
+        // Remove formatos comuns de publicidade sem tocar nos cards de filmes e players.
         val script = """
             (function() {
               try {
+                const styleId = 'maxiflix-ad-cleanup';
+                if (!document.getElementById(styleId)) {
+                  const style = document.createElement('style');
+                  style.id = styleId;
+                  style.textContent = [
+                    'iframe[src*="doubleclick" i]',
+                    'iframe[src*="googlesyndication" i]',
+                    'iframe[src*="popads" i]',
+                    'iframe[src*="popcash" i]',
+                    'iframe[src*="1win" i]',
+                    'ins.adsbygoogle',
+                    '.adsbygoogle',
+                    '[id^="google_ads"]',
+                    '[id*="ad-container" i]',
+                    '[class*="ad-banner" i]',
+                    '[class*="advertisement" i]',
+                    '[data-ad-slot]',
+                    '[data-ad-client]'
+                  ].join(',') + '{display:none!important;visibility:hidden!important;pointer-events:none!important}';
+                  (document.head || document.documentElement).appendChild(style);
+                }
                 const selectors = [
-                  'iframe[src*="1win" i]', 'a[href*="1win" i]',
-                  'img[src*="1win" i]', 'img[alt*="1win" i]',
-                  '[class*="1win" i]', '[id*="1win" i]', '[data-ad*="1win" i]'
+                  'iframe[src*="doubleclick" i]',
+                  'iframe[src*="googlesyndication" i]',
+                  'iframe[src*="popads" i]',
+                  'iframe[src*="popcash" i]',
+                  'iframe[src*="1win" i]',
+                  'a[href*="1win" i]',
+                  'img[src*="1win" i]',
+                  'img[alt*="1win" i]',
+                  'ins.adsbygoogle',
+                  '.adsbygoogle',
+                  '[id^="google_ads"]',
+                  '[data-ad-slot]',
+                  '[data-ad-client]'
                 ];
                 selectors.forEach(function(selector) {
                   document.querySelectorAll(selector).forEach(function(el) {
@@ -447,6 +514,7 @@ class MainActivity : AppCompatActivity() {
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
     }
+
 
     private fun updateNavigationButtons() {
         if (!::siteWeb.isInitialized || !::backButton.isInitialized ||
