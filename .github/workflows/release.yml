@@ -2,10 +2,6 @@ name: Publish MAXi-FLIX update
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - ".github/release-trigger/maxiflix-v1.5.0"
     tags:
       - "maxiflix-v*"
   workflow_dispatch:
