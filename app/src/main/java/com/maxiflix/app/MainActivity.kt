@@ -426,7 +426,7 @@ class MainActivity : AppCompatActivity() {
             (function() {
               try {
                 document.title = 'MAXi-FLIX';
-                const brand = /rede\s*de\s*canais(?:\s*\\.?\s*in)?/i;
+                const brand = /rede\s*de\s*canais(?:\s*\.?\s*in)?/i;
                 const styleId = 'maxiflix-hide-site-brand';
                 if (!document.getElementById(styleId)) {
                   const style = document.createElement('style');
