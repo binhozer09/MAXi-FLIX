@@ -23,10 +23,7 @@ jobs:
     env:
       ANDROID_HOME: /usr/local/lib/android/sdk
       ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
-      MAXIFLIX_KEYSTORE_BASE64: ${{ secrets.MAXIFLIX_KEYSTORE_BASE64 }}
-      MAXIFLIX_KEYSTORE_PASSWORD: ${{ secrets.MAXIFLIX_KEYSTORE_PASSWORD }}
-      MAXIFLIX_KEY_ALIAS: ${{ secrets.MAXIFLIX_KEY_ALIAS }}
-      MAXIFLIX_KEY_PASSWORD: ${{ secrets.MAXIFLIX_KEY_PASSWORD }}
+      MAXIFLIX_SIGNING_BUNDLE: ${{ secrets.MAXIFLIX_SIGNING_BUNDLE }}
 
     steps:
       - name: Checkout
@@ -53,16 +50,38 @@ jobs:
         with:
           gradle-version: "8.7"
 
-      - name: Validate signing secrets and prepare keystore
+      - name: Validate signing key and prepare keystore
         shell: bash
         run: |
           set -euo pipefail
-          test -n "$MAXIFLIX_KEYSTORE_BASE64" || { echo "Missing MAXIFLIX_KEYSTORE_BASE64 secret"; exit 1; }
-          test -n "$MAXIFLIX_KEYSTORE_PASSWORD" || { echo "Missing MAXIFLIX_KEYSTORE_PASSWORD secret"; exit 1; }
-          test -n "$MAXIFLIX_KEY_ALIAS" || { echo "Missing MAXIFLIX_KEY_ALIAS secret"; exit 1; }
-          test -n "$MAXIFLIX_KEY_PASSWORD" || { echo "Missing MAXIFLIX_KEY_PASSWORD secret"; exit 1; }
-          echo "$MAXIFLIX_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/maxiflix-release.jks"
-          echo "MAXIFLIX_KEYSTORE_PATH=$RUNNER_TEMP/maxiflix-release.jks" >> "$GITHUB_ENV"
+          test -n "$MAXIFLIX_SIGNING_BUNDLE" || { echo "Missing MAXIFLIX_SIGNING_BUNDLE secret"; exit 1; }
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+
+          bundle = json.loads(base64.b64decode(os.environ["MAXIFLIX_SIGNING_BUNDLE"]))
+          store_b64 = bundle["keystoreBase64"]
+          store_password = bundle["keystorePassword"]
+          key_alias = bundle["keyAlias"]
+          key_password = bundle["keyPassword"]
+          if not all([store_b64, store_password, key_alias, key_password]):
+              raise SystemExit("Signing bundle is incomplete")
+
+          keystore_path = pathlib.Path(os.environ["RUNNER_TEMP"]) / "maxiflix-release.jks"
+          keystore_path.write_bytes(base64.b64decode(store_b64))
+          keystore_path.chmod(0o600)
+
+          for secret in (store_b64, store_password, key_password):
+              print(f"::add-mask::{secret}")
+
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as env:
+              env.write(f"MAXIFLIX_KEYSTORE_PATH={keystore_path}\\n")
+              env.write(f"MAXIFLIX_KEYSTORE_PASSWORD={store_password}\\n")
+              env.write(f"MAXIFLIX_KEY_ALIAS={key_alias}\\n")
+              env.write(f"MAXIFLIX_KEY_PASSWORD={key_password}\\n")
+          PY
 
       - name: Build signed release APK
         run: gradle --no-daemon :app:clean :app:assembleRelease
