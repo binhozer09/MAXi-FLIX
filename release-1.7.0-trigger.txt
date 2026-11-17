@@ -1,1 +1,2 @@
 Trigger final MAXi-FLIX 1.7.0 build after all release changes.
+Build trigger refreshed.
