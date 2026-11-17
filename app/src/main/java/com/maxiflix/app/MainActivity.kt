@@ -200,7 +200,7 @@ class MainActivity : AppCompatActivity() {
             "redirectingat.com", "linkvertise.com", "loot-link.com",
             "lootlinks.co", "ouo.io", "ouo.press", "shorte.st",
             "acidaldimin.qpon", "mywondertrip.com",
-            "connatix.com", "pmbmonetize.live",
+            "pmbmonetize.live",
             "ribsiuds.qpon", "slubplenism.com", "subduepaler.cyou"
         )
     }
@@ -626,7 +626,7 @@ class MainActivity : AppCompatActivity() {
               try {
                 const blocked = [
                   'shopee.com','shopee.com.br','shope.ee','appsflyer.com',
-                  'connatix.com','pmbmonetize.live',
+                  'pmbmonetize.live',
                   'doubleclick.net','googlesyndication.com','googleadservices.com',
                   'popads.net','popcash.net','propellerads.com','adsterra.com',
                   'exoclick.com','exosrv.com','trafficstars.com','tsyndicate.com',
@@ -1051,6 +1051,8 @@ class MainActivity : AppCompatActivity() {
 
     private fun isBlockedAdHost(uri: Uri): Boolean {
         val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+        // Connatix também entrega players de vídeo; liberar seus recursos de reprodução.
+        if (host == "connatix.com" || host.endsWith(".connatix.com")) return false
         // Motor local de filtros: bloqueia domínios conhecidos e padrões inequívocos
         // de chamadas publicitárias em URLs, inclusive quando o anúncio usa outro host.
         if (host.contains("shopee") || host.contains("appsflyer") ||
