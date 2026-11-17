@@ -94,7 +94,9 @@ jobs:
           gradle --no-daemon :app:clean :app:assembleRelease
           APK_PATH="$(find app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -n 1)"
           test -n "$APK_PATH"
-          apksigner verify --verbose "$APK_PATH"
+          APKSIGNER="$(find "${ANDROID_HOME:-$ANDROID_SDK_ROOT}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$APK_PATH"
           mkdir -p release
           cp "$APK_PATH" release/MAXi-FLIX.apk
 
