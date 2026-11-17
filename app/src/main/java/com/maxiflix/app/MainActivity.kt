@@ -259,6 +259,10 @@ class MainActivity : AppCompatActivity() {
                 updateNavigationButtons()
             }
 
+            override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+                updateNavigationButtons()
+            }
+
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest
@@ -327,7 +331,7 @@ class MainActivity : AppCompatActivity() {
     private fun hideSiteBranding() {
         val script = """
             (function() {
-              const pattern = /rede\\s*(?:de\\s*)?canais(?:\\s*\\.?\\s*in)?/i;
+              const pattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
               function hideBranding() {
                 try {
                   document.title = 'MAXi-FLIX';
