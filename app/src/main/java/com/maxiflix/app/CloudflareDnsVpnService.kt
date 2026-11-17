@@ -46,7 +46,7 @@ class CloudflareDnsVpnService : VpnService() {
             "bidswitch.net", "bidvertiser.com", "yieldmo.com", "smaato.com",
             "inmobi.com", "applovin.com", "ironsrc.com", "vungle.com",
             "tapjoy.com", "adcolony.com", "adpushup.com", "mgid.com",
-            "revcontent.com", "connatix.com", "pmbmonetize.live",
+            "revcontent.com", "pmbmonetize.live",
             "ribsiuds.qpon", "slubplenism.com", "subduepaler.cyou"
         )
     }
