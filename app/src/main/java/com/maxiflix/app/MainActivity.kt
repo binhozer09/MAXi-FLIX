@@ -650,6 +650,46 @@ class MainActivity : AppCompatActivity() {
                     ].some(function(marker) { return url.indexOf(marker) !== -1; });
                   } catch (_) { return false; }
                 }
+                function reportFloatingElements() {
+                  const now = Date.now();
+                  if (window.__maxiflixLastFloatingReport &&
+                      now - window.__maxiflixLastFloatingReport < 5000) return;
+                  window.__maxiflixLastFloatingReport = now;
+                  const nodes = document.querySelectorAll('body *');
+                  let scanned = 0;
+                  let found = 0;
+                  for (let i = 0; i < nodes.length && scanned < 2500 && found < 8; i++) {
+                    const node = nodes[i];
+                    scanned++;
+                    if (!node || node === document.body ||
+                        node.matches('script,style,noscript,video,audio,source')) continue;
+                    const style = getComputedStyle(node);
+                    if (!['fixed','absolute','sticky'].includes(style.position) ||
+                        style.display === 'none' || style.visibility === 'hidden' ||
+                        Number(style.opacity) === 0) continue;
+                    const rect = node.getBoundingClientRect();
+                    const width = Math.round(rect.width);
+                    const height = Math.round(rect.height);
+                    if (width < 50 || height < 22 ||
+                        rect.right < 0 || rect.bottom < 0 ||
+                        rect.left > innerWidth || rect.top > innerHeight) continue;
+                    found++;
+                    console.log('MAXIFLIX_FLOATING_NODE ' + JSON.stringify({
+                      tag: node.tagName,
+                      id: String(node.id || '').slice(0, 70),
+                      className: String(typeof node.className === 'string' ? node.className : '').slice(0, 100),
+                      position: style.position, zIndex: style.zIndex,
+                      width: width, height: height,
+                      top: Math.round(rect.top), left: Math.round(rect.left),
+                      text: String(node.innerText || node.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').slice(0, 70),
+                      iframe: node.querySelector('iframe') ? 'yes' : 'no',
+                      image: node.querySelector('img') ? 'yes' : 'no',
+                      player: !!node.querySelector('video,[class*="player" i],[id*="player" i]')
+                    }));
+                  }
+                  console.log('MAXIFLIX_FLOATING_SCAN ' +
+                    JSON.stringify({scanned: scanned, found: found, url: location.pathname}));
+                }
                 function removeAdOverlays(root) {
                   const scope = root && root.querySelectorAll ? root : document;
                   const candidates = new Set();
@@ -800,6 +840,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 cleanAdFrames(document);
                 removeAdOverlays(document);
+                reportFloatingElements();
                 if (!window.__maxiflixAdObserver && document.documentElement) {
                   window.__maxiflixAdObserver = new MutationObserver(function(records) {
                     records.forEach(function(record) {
@@ -829,6 +870,7 @@ class MainActivity : AppCompatActivity() {
                     window.setInterval(function() {
                       removeAdOverlays(document);
                       cleanAdFrames(document);
+                      reportFloatingElements();
                     }, 1500);
                 }
                 const styleId = 'maxiflix-ad-cleanup';
