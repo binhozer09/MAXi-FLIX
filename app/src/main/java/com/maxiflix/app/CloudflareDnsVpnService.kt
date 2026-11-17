@@ -31,6 +31,24 @@ class CloudflareDnsVpnService : VpnService() {
         private const val NOTIFICATION_ID = 1101
         private const val PRIMARY_DNS = "1.1.1.1"
         private const val SECONDARY_DNS = "1.0.0.1"
+        // Lista local de domínios publicitários e hosts maliciosos observados no MAXi-FLIX.
+        // O bloqueio ocorre somente no DNS do próprio aplicativo.
+        private val BLOCKED_DNS_DOMAINS = setOf(
+            "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+            "googletagservices.com", "adservice.google.com", "adnxs.com",
+            "adform.net", "taboola.com", "outbrain.com", "criteo.com",
+            "pubmatic.com", "openx.net", "rubiconproject.com", "casalemedia.com",
+            "smartadserver.com", "adroll.com", "amazon-adsystem.com",
+            "popads.net", "popcash.net", "propellerads.com", "adsterra.com",
+            "exoclick.com", "trafficjunky.net", "juicyads.com", "hilltopads.net",
+            "onclickads.net", "trafficstars.com", "monetag.com", "push.house",
+            "pushwelcome.com", "richpush.co", "media.net", "sharethrough.com",
+            "bidswitch.net", "bidvertiser.com", "yieldmo.com", "smaato.com",
+            "inmobi.com", "applovin.com", "ironsrc.com", "vungle.com",
+            "tapjoy.com", "adcolony.com", "adpushup.com", "mgid.com",
+            "revcontent.com", "connatix.com", "pmbmonetize.live",
+            "ribsiuds.qpon", "slubplenism.com", "subduepaler.cyou"
+        )
     }
 
     private val running = AtomicBoolean(false)
@@ -145,7 +163,13 @@ class CloudflareDnsVpnService : VpnService() {
             ipHeaderLength + 8 + dnsLength
         )
 
-        val dnsResponse = queryCloudflare(destinationIp, dnsQuery) ?: return
+        val queriedHost = extractDnsQueryHost(dnsQuery)
+        val dnsResponse = if (queriedHost != null && isBlockedDnsHost(queriedHost)) {
+            android.util.Log.d("MAXI_FLIX_DNS", "Blocked ad domain: $queriedHost")
+            buildNxDomainResponse(dnsQuery)
+        } else {
+            queryCloudflare(destinationIp, dnsQuery) ?: return
+        }
         if (dnsResponse.isEmpty() || dnsResponse.size > 1472) return
 
         val sourceIp = packet.copyOfRange(12, 16)
@@ -162,6 +186,49 @@ class CloudflareDnsVpnService : VpnService() {
             output.write(responsePacket)
             output.flush()
         }
+    }
+
+    private fun extractDnsQueryHost(query: ByteArray): String? {
+        if (query.size < 17) return null
+        var offset = 12
+        val labels = ArrayList<String>()
+        while (offset < query.size) {
+            val length = query[offset].toInt() and 0xff
+            offset++
+            if (length == 0) {
+                return if (labels.isEmpty()) null
+                else labels.joinToString(".").lowercase()
+            }
+            if (length > 63 || offset + length > query.size) return null
+            val label = query.copyOfRange(offset, offset + length)
+                .toString(Charsets.US_ASCII)
+            if (label.isBlank() || label.any { it.code < 33 || it.code > 126 }) return null
+            labels.add(label)
+            if (labels.size > 127) return null
+            offset += length
+        }
+        return null
+    }
+
+    private fun isBlockedDnsHost(host: String): Boolean {
+        val normalized = host.trimEnd('.').lowercase()
+        return BLOCKED_DNS_DOMAINS.any { domain ->
+            normalized == domain || normalized.endsWith(".$domain")
+        }
+    }
+
+    private fun buildNxDomainResponse(query: ByteArray): ByteArray {
+        // Responde NXDOMAIN localmente, sem consultar o resolvedor externo.
+        val response = query.copyOf()
+        response[2] = (response[2].toInt() or 0x80).toByte() // QR = response
+        response[3] = ((response[3].toInt() and 0x70) or 0x83).toByte() // RA + NXDOMAIN
+        response[6] = 0
+        response[7] = 0
+        response[8] = 0
+        response[9] = 0
+        response[10] = 0
+        response[11] = 0
+        return response
     }
 
     private fun queryCloudflare(
