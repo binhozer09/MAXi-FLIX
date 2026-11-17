@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="screen_background">#090B10</color>
+    <color name="top_bar">#11141C</color>
+    <color name="accent">#E50914</color>
+    <color name="status_text">#D8DCE5</color>
+</resources>

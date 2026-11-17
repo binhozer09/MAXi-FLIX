@@ -1,0 +1,92 @@
+name: Publish MAXi-FLIX update
+
+on:
+  push:
+    tags:
+      - "maxiflix-v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+    env:
+      MAXIFLIX_KEYSTORE_BASE64: ${{ secrets.MAXIFLIX_KEYSTORE_BASE64 }}
+      MAXIFLIX_KEYSTORE_PASSWORD: ${{ secrets.MAXIFLIX_KEYSTORE_PASSWORD }}
+      MAXIFLIX_KEY_ALIAS: ${{ secrets.MAXIFLIX_KEY_ALIAS }}
+      MAXIFLIX_KEY_PASSWORD: ${{ secrets.MAXIFLIX_KEY_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Validate signing secrets and prepare keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$MAXIFLIX_KEYSTORE_BASE64" || { echo "Missing MAXIFLIX_KEYSTORE_BASE64 secret"; exit 1; }
+          test -n "$MAXIFLIX_KEYSTORE_PASSWORD" || { echo "Missing MAXIFLIX_KEYSTORE_PASSWORD secret"; exit 1; }
+          test -n "$MAXIFLIX_KEY_ALIAS" || { echo "Missing MAXIFLIX_KEY_ALIAS secret"; exit 1; }
+          test -n "$MAXIFLIX_KEY_PASSWORD" || { echo "Missing MAXIFLIX_KEY_PASSWORD secret"; exit 1; }
+          echo "$MAXIFLIX_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/maxiflix-release.jks"
+          echo "MAXIFLIX_KEYSTORE_PATH=$RUNNER_TEMP/maxiflix-release.jks" >> "$GITHUB_ENV"
+
+      - name: Build signed release APK
+        run: gradle --no-daemon :app:clean :app:assembleRelease
+
+      - name: Create release manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          cp app/build/outputs/apk/release/app-release.apk release/MAXi-FLIX.apk
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import pathlib
+          import re
+
+          gradle_file = pathlib.Path("app/build.gradle.kts").read_text(encoding="utf-8")
+          version_code = int(re.search(r"versionCode\s*=\s*(\d+)", gradle_file).group(1))
+          version_name = re.search(r'versionName\s*=\s*"([^"]+)"', gradle_file).group(1)
+          apk = pathlib.Path("release/MAXi-FLIX.apk")
+          digest = hashlib.sha256(apk.read_bytes()).hexdigest()
+          manifest = {
+              "enabled": True,
+              "versionCode": version_code,
+              "versionName": version_name,
+              "apkFile": "MAXi-FLIX.apk",
+              "apkSha256": digest,
+              "apkSizeBytes": apk.stat().st_size,
+              "releaseNotes": "Atualização do MAXi-FLIX."
+          }
+          pathlib.Path("release/update.json").write_text(
+              json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+          PY
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MAXi-FLIX ${{ github.ref_name }}
+          generate_release_notes: true
+          files: |
+            release/MAXi-FLIX.apk
+            release/update.json
