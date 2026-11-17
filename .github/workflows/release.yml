@@ -2,6 +2,8 @@ name: Publish MAXi-FLIX update
 
 on:
   push:
+    branches:
+      - "release/1.5.0"
     tags:
       - "maxiflix-v*"
   workflow_dispatch:
