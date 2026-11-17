@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInfo
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.net.VpnService
 import android.os.Build
@@ -69,6 +71,8 @@ class MainActivity : AppCompatActivity() {
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
     private var dnsReceiverRegistered = false
     private var siteLoadStarted = false
+    private var cacheRetryInProgress = false
+    private var restoredWebViewState = false
 
     private val dnsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -157,6 +161,11 @@ class MainActivity : AppCompatActivity() {
 
         cleanupInstalledUpdate()
         configureWebView()
+        restoredWebViewState = savedInstanceState?.let { state ->
+            siteWeb.restoreState(state) != null
+        } ?: false
+        getSharedPreferences("maxiflix_local_data", MODE_PRIVATE).edit()
+            .putLong("last_opened_at", System.currentTimeMillis()).apply()
 
         updateButton.setOnClickListener {
             if (downloadedApkFile().exists()) {
@@ -217,7 +226,11 @@ class MainActivity : AppCompatActivity() {
     private fun loadSiteAndCheckUpdates() {
         if (siteLoadStarted || isFinishing) return
         siteLoadStarted = true
-        siteWeb.loadUrl(SITE_URL)
+        if (!restoredWebViewState) {
+            siteWeb.settings.cacheMode = if (hasValidatedInternet()) WebSettings.LOAD_DEFAULT
+                else WebSettings.LOAD_CACHE_ELSE_NETWORK
+            siteWeb.loadUrl(SITE_URL)
+        }
         siteWeb.postDelayed({ checkForUpdates(showLatestMessage = false) }, 2500L)
     }
 
@@ -250,7 +263,9 @@ class MainActivity : AppCompatActivity() {
             allowFileAccess = false
             allowContentAccess = false
             mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-            cacheMode = WebSettings.LOAD_DEFAULT
+            // Cache HTTP em disco e DOM Storage ficam no sandbox privado do aplicativo.
+            cacheMode = if (hasValidatedInternet()) WebSettings.LOAD_DEFAULT
+                else WebSettings.LOAD_CACHE_ELSE_NETWORK
         }
 
         CookieManager.getInstance().setAcceptCookie(true)
@@ -262,9 +277,30 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageFinished(view: WebView?, url: String?) {
+                cacheRetryInProgress = false
+                view?.settings?.cacheMode = WebSettings.LOAD_DEFAULT
+                url?.let { lastUrl -> getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
+                    .edit().putString("last_page_url", lastUrl).apply() }
+                CookieManager.getInstance().flush()
                 hideSiteBranding()
                 hide1WinAds()
                 updateNavigationButtons()
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                super.onReceivedError(view, request, error)
+                if (request?.isForMainFrame == true && !hasValidatedInternet() && !cacheRetryInProgress) {
+                    val failedUrl = request.url.toString()
+                    cacheRetryInProgress = true
+                    view?.post {
+                        view.settings.cacheMode = WebSettings.LOAD_CACHE_ELSE_NETWORK
+                        view.loadUrl(failedUrl)
+                    }
+                }
             }
 
             override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
@@ -472,6 +508,14 @@ class MainActivity : AppCompatActivity() {
         forwardButton.isEnabled = canGoForward
         backButton.alpha = if (canGoBack) 1f else 0.45f
         forwardButton.alpha = if (canGoForward) 1f else 0.45f
+    }
+
+    private fun hasValidatedInternet(): Boolean {
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     private fun isAllowedMainFrameUrl(uri: Uri): Boolean {
@@ -941,6 +985,11 @@ class MainActivity : AppCompatActivity() {
         updateProgress.visibility = View.GONE
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        if (::siteWeb.isInitialized) siteWeb.saveState(outState)
+        super.onSaveInstanceState(outState)
+    }
+
     override fun onResume() {
         super.onResume()
         if (pendingInstallAfterPermission &&
@@ -965,6 +1014,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         if (::siteWeb.isInitialized) siteWeb.onPause()
+        CookieManager.getInstance().flush()
         super.onPause()
     }
 
@@ -975,7 +1025,10 @@ class MainActivity : AppCompatActivity() {
             dnsReceiverRegistered = false
         }
         worker.shutdownNow()
-        if (::siteWeb.isInitialized) siteWeb.destroy()
+        if (::siteWeb.isInitialized) {
+            CookieManager.getInstance().flush()
+            siteWeb.destroy()
+        }
         super.onDestroy()
     }
 }
