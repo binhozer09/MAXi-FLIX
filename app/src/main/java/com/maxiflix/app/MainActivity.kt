@@ -497,7 +497,8 @@ class MainActivity : AppCompatActivity() {
                 view: View?,
                 callback: CustomViewCallback?
             ) {
-                if (view == null || callback == null) return                showFullscreenView(view, callback)
+                if (view == null || callback == null) return
+                showFullscreenView(view, callback)
             }
 
             override fun onHideCustomView() {
@@ -688,11 +689,11 @@ class MainActivity : AppCompatActivity() {
                     const positioned = style.position === 'fixed' ||
                       style.position === 'absolute' || style.position === 'sticky';
                     const elevated = Number.parseInt(style.zIndex || '0', 10) > 0;
-                    if (!positioned || !elevated || width < innerWidth * 0.18 ||
-                        height < 32 || height > innerHeight * 0.55) return;
-                    const nearEdge = rect.bottom >= innerHeight * 0.55 ||
-                      rect.top <= innerHeight * 0.30;
-                    if (!nearEdge) return;
+                    if (!positioned || width < innerWidth * 0.12 ||
+                        height < 28 || height > innerHeight * 0.70) return;
+                    const nearEdge = rect.bottom >= innerHeight * 0.50 ||
+                      rect.top <= innerHeight * 0.35;
+                    if (!nearEdge && !elevated && !semanticAd) return;
                     const media = Array.from(node.querySelectorAll('iframe[src],img[src],a[href]'));
                     const adMedia = media.some(function(child) {
                       const value = child.getAttribute('src') || child.getAttribute('href') || '';
@@ -711,7 +712,50 @@ class MainActivity : AppCompatActivity() {
                     const floatingAd = semanticAd || adMedia || (adCopy && hasClose);
                     const coversScreen = area > viewport * 0.30 &&
                       (style.position === 'fixed' || style.position === 'absolute');
+                    const fingerprint = [
+                      node.tagName, node.id || '',
+                      typeof node.className === 'string' ? node.className : '',
+                      Math.round(width) + 'x' + Math.round(height), style.position, style.zIndex
+                    ].join('|').slice(0, 150);
+                    window.__maxiflixOverlaySeen = window.__maxiflixOverlaySeen || new WeakSet();
+                    if (!window.__maxiflixOverlaySeen.has(node)) {
+                      window.__maxiflixOverlaySeen.add(node);
+                      const mediaUrl = media.map(function(child) {
+                        const raw = child.getAttribute('src') || child.getAttribute('href') || '';
+                        try {
+                          const parsed = new URL(raw, location.href);
+                          return parsed.hostname + parsed.pathname;
+                        } catch (_) { return raw.split('?')[0].slice(0, 100); }
+                      }).slice(0, 3).join(',');
+                      console.log('MAXIFLIX_OVERLAY_CANDIDATE ' + JSON.stringify({
+                        tag: node.tagName, id: String(node.id || '').slice(0, 80),
+                        className: String(typeof node.className === 'string' ? node.className : '').slice(0, 120),
+                        position: style.position, zIndex: style.zIndex,
+                        width: Math.round(width), height: Math.round(height),
+                        top: Math.round(rect.top), left: Math.round(rect.left),
+                        semanticAd: semanticAd, adMedia: adMedia, adCopy: adCopy,
+                        hasClose: hasClose, coversScreen: coversScreen,
+                        media: mediaUrl, fingerprint: fingerprint
+                      }));
+                    }
+                    const media = Array.from(node.querySelectorAll('iframe[src],img[src],a[href]'));
+                    const adMedia = media.some(function(child) {
+                      const value = child.getAttribute('src') || child.getAttribute('href') || '';
+                      if (isAdUrl(value)) return true;
+                      try {
+                        const host = new URL(value, location.href).hostname.toLowerCase();
+                        return host && host !== location.hostname &&
+                          (child.tagName === 'IFRAME' || child.tagName === 'IMG');
+                      } catch (_) { return false; }
+                    });
+                    const adCopy = /anúncio|publicidade|patrocinado|saiba mais|clique aqui/i
+                      .test((node.textContent || '').slice(0, 500));
+                    const hasClose = !!node.querySelector(
+                      '[aria-label*="fechar" i],[title*="fechar" i],.close,.fechar,[class*="close" i]'
+                    );
                     if (!floatingAd && !coversScreen) return;
+                    console.log('MAXIFLIX_OVERLAY_REMOVED ' + fingerprint +
+                      ' reason=' + (semanticAd ? 'semantic' : adMedia ? 'external-media' : adCopy && hasClose ? 'ad-copy-close' : 'large-overlay'));
                     node.remove();
                   });
                 }
@@ -785,11 +829,22 @@ class MainActivity : AppCompatActivity() {
                           }
                         }
                       });
+                      if (record.type === 'attributes' && record.target &&
+                          record.target.nodeType === 1) {
+                        cleanAdFrames(record.target);
+                        removeAdOverlays(record.target);
+                      }
                     });
                   });
                   window.__maxiflixAdObserver.observe(document.documentElement, {
-                    childList: true, subtree: true
+                    childList: true, subtree: true, attributes: true,
+                    attributeFilter: ['style','class','id','src','href','aria-label']
                   });
+                  window.__maxiflixOverlayScan = window.__maxiflixOverlayScan ||
+                    window.setInterval(function() {
+                      removeAdOverlays(document);
+                      cleanAdFrames(document);
+                    }, 1500);
                 }
                 const styleId = 'maxiflix-ad-cleanup';
                 if (!document.getElementById(styleId)) {
@@ -1027,7 +1082,8 @@ class MainActivity : AppCompatActivity() {
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         customView = null
 
-        val orientationToRestore = previousRequestedOrientation        previousRequestedOrientation = null
+        val orientationToRestore = previousRequestedOrientation
+        previousRequestedOrientation = null
         if (orientationToRestore != null) requestedOrientation = orientationToRestore
 
         val callback = customViewCallback
