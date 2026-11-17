@@ -409,6 +409,15 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: WebResourceRequest?,
+                errorResponse: WebResourceResponse?
+            ) {
+                super.onReceivedHttpError(view, request, errorResponse)
+                logDiagnostic("HTTP_ERROR", "mainFrame=${request?.isForMainFrame}; status=${errorResponse?.statusCode}; reason=${errorResponse?.reasonPhrase}; url=${safeUrl(request?.url?.toString())}")
+            }
+
             override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
                 updateNavigationButtons()
             }
