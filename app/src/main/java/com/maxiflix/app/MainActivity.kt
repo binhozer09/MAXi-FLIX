@@ -22,6 +22,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
 import android.webkit.WebView
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.FrameLayout
@@ -292,6 +293,37 @@ class MainActivity : AppCompatActivity() {
         CookieManager.getInstance().setAcceptThirdPartyCookies(siteWeb, true)
 
         siteWeb.webViewClient = object : WebViewClient() {
+            override fun onRenderProcessGone(
+                view: WebView?,
+                detail: RenderProcessGoneDetail?
+            ): Boolean {
+                val crashedView = view ?: return true
+                val parent = crashedView.parent as? ViewGroup
+                Log.e(TAG, "Processo de renderização do WebView encerrado; recriando a tela")
+                if (parent == null) {
+                    crashedView.destroy()
+                    return true
+                }
+
+                val lastUrl = crashedView.url
+                    ?: getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
+                        .getString("last_page_url", SITE_URL)
+                    ?: SITE_URL
+                val childIndex = parent.indexOfChild(crashedView)
+                val layoutParams = crashedView.layoutParams
+                parent.removeView(crashedView)
+                crashedView.destroy()
+
+                val replacement = WebView(this@MainActivity).apply {
+                    id = R.id.siteWeb
+                }
+                parent.addView(replacement, childIndex.coerceAtLeast(0), layoutParams)
+                siteWeb = replacement
+                configureWebView()
+                replacement.post { replacement.loadUrl(lastUrl) }
+                return true
+            }
+
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 updateNavigationButtons()
             }
