@@ -382,6 +382,8 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 logDiagnostic("PAGE_START", safeUrl(url))
+                // Esconde a marca do site assim que a navegação começa, antes do carregamento visual.
+                hideSiteBranding()
                 updateNavigationButtons()
             }
 
@@ -576,15 +578,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hideSiteBranding() {
-        // Oculta a marca do site tanto no título quanto nos textos e logotipos visíveis.
-        // Varredura única e limitada: sem MutationObserver nem tarefas repetidas no clique.
+        // Aplica o bloqueio visual logo no início e acompanha elementos inseridos pelo site.
         val script = """
             (function() {
               try {
                 document.title = 'MAXi-FLIX';
-                const brand = /rede\s*de\s*canais(?:\s*\.?\s*in)?/i;
+                const brand = /rede\\s*de\\s*canais(?:\\s*\\.?\\s*in)?/i;
                 const styleId = 'maxiflix-hide-site-brand';
-                if (!document.getElementById(styleId)) {
+                function installStyle() {
+                  const root = document.head || document.documentElement;
+                  if (!root || document.getElementById(styleId)) return;
                   const style = document.createElement('style');
                   style.id = styleId;
                   style.textContent = [
@@ -594,30 +597,55 @@ class MainActivity : AppCompatActivity() {
                     '[class*="logo" i] img[alt*="rede" i]',
                     '[class*="site-brand" i]'
                   ].join(',') + '{display:none!important;visibility:hidden!important}';
-                  (document.head || document.documentElement).appendChild(style);
+                  root.appendChild(style);
                 }
-                const walker = document.createTreeWalker(
-                  document.body || document.documentElement,
-                  NodeFilter.SHOW_TEXT
-                );
-                let node, checked = 0;
-                while ((node = walker.nextNode()) && checked < 3500) {
-                  checked++;
-                  const value = (node.nodeValue || '').replace(/\s+/g, ' ').trim();
-                  if (!value || value.length > 70 || !brand.test(value)) continue;
-                  let el = node.parentElement;
-                  if (!el) continue;
-                  const target = el.closest('a,span,h1,h2,h3,p,small,strong,div') || el;
-                  if ((target.textContent || '').trim().length <= 90) {
-                    target.style.setProperty('display', 'none', 'important');
+                function hideBrandText(root) {
+                  if (!root) return;
+                  const walker = document.createTreeWalker(
+                    root,
+                    NodeFilter.SHOW_TEXT
+                  );
+                  let node, checked = 0;
+                  while ((node = walker.nextNode()) && checked < 700) {
+                    checked++;
+                    const value = (node.nodeValue || '').replace(/\\s+/g, ' ').trim();
+                    if (!value || value.length > 70 || !brand.test(value)) continue;
+                    let el = node.parentElement;
+                    if (!el) continue;
+                    const target = el.closest('a,span,h1,h2,h3,p,small,strong,div') || el;
+                    if ((target.textContent || '').trim().length <= 90) {
+                      target.style.setProperty('display', 'none', 'important');
+                    }
                   }
                 }
+                installStyle();
+                if (document.documentElement && !window.__maxiflixBrandObserver) {
+                  window.__maxiflixBrandObserver = new MutationObserver(function(mutations) {
+                    installStyle();
+                    mutations.forEach(function(mutation) {
+                      if (mutation.type === 'characterData') {
+                        hideBrandText(mutation.target.parentElement);
+                      } else {
+                        mutation.addedNodes.forEach(function(node) {
+                          if (node.nodeType === Node.ELEMENT_NODE) hideBrandText(node);
+                          else if (node.nodeType === Node.TEXT_NODE &&
+                                   brand.test((node.nodeValue || '').trim())) {
+                            hideBrandText(node.parentElement);
+                          }
+                        });
+                      }
+                    });
+                  });
+                  window.__maxiflixBrandObserver.observe(document.documentElement, {
+                    childList: true, subtree: true, characterData: true
+                  });
+                }
+                hideBrandText(document.body || document.documentElement);
               } catch (_) {}
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
     }
-
 
     private fun hide1WinAds() {
         // Remove quadros de publicidade inseridos depois do carregamento sem tocar no player.
