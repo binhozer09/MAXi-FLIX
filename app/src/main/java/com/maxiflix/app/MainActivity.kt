@@ -549,8 +549,12 @@ class MainActivity : AppCompatActivity() {
                   background: #000 !important;
                 }
                 video::-webkit-media-controls { z-index: 20 !important; }
-                .video-js, .jwplayer, [class*="video-player" i],
-                [id*="video-player" i] { max-width: 100% !important; }
+                .video-js, .jwplayer, .plyr, .dplayer, .flowplayer,
+                .plyr__video-wrapper, [class*="video-player" i],
+                [id*="video-player" i] {
+                  width: 100% !important;
+                  max-width: 100% !important;
+                }
               `;
               if (!window.__maxiflixVideoFitEvents) {
                 window.__maxiflixVideoFitEvents = true;
@@ -665,10 +669,19 @@ class MainActivity : AppCompatActivity() {
                     const area = Math.max(0, rect.width) * Math.max(0, rect.height);
                     const viewport = Math.max(1, innerWidth * innerHeight);
                     const style = getComputedStyle(node);
+                    const elevated = Number.parseInt(style.zIndex || '0', 10) > 0;
                     const coversScreen = area > viewport * 0.30 &&
                       (style.position === 'fixed' || style.position === 'absolute' ||
                        rect.width > innerWidth * 0.85 || rect.height > innerHeight * 0.65);
-                    if (!coversScreen) return;
+                    // Banners flutuantes menores costumam ficar presos no rodapé ou topo.
+                    // Só remove quando a identidade já foi marcada como publicidade.
+                    const floatingBanner =
+                      (style.position === 'fixed' || style.position === 'absolute' ||
+                       style.position === 'sticky') &&
+                      elevated && rect.width >= innerWidth * 0.25 &&
+                      rect.height >= 36 && rect.height <= innerHeight * 0.45 &&
+                      (rect.bottom >= innerHeight * 0.55 || rect.top <= innerHeight * 0.25);
+                    if (!coversScreen && !floatingBanner) return;
                     node.remove();
                   });
                 }
