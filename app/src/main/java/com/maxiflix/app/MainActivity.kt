@@ -123,7 +123,14 @@ class MainActivity : AppCompatActivity() {
             "onclickalgo.com",
             "mgid.com",
             "revcontent.com",
-            "adskeeper.co.uk"
+            "adskeeper.co.uk",
+            "1win.com",
+            "1win.bet",
+            "1win.tv",
+            "1win.run",
+            "1win.link",
+            "1win.games",
+            "1win.live"
         )
     }
 
@@ -256,6 +263,7 @@ class MainActivity : AppCompatActivity() {
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 hideSiteBranding()
+                hide1WinAds()
                 updateNavigationButtons()
             }
 
@@ -371,6 +379,82 @@ class MainActivity : AppCompatActivity() {
                   childList: true,
                   subtree: true,
                   characterData: true
+                });
+              }
+            })();
+        """.trimIndent()
+        siteWeb.evaluateJavascript(script, null)
+    }
+
+    private fun hide1WinAds() {
+        val script = """
+            (function() {
+              const selectors = [
+                'iframe[src*="1win" i]',
+                'a[href*="1win" i]',
+                'img[src*="1win" i]',
+                'img[alt*="1win" i]',
+                '[class*="1win" i]',
+                '[id*="1win" i]',
+                '[data-ad*="1win" i]'
+              ];
+
+              function removeAd(element) {
+                if (!element || element === document.body ||
+                    element === document.documentElement) return;
+
+                let target = element;
+                let current = element;
+
+                for (let i = 0; i < 7 && current && current.parentElement; i++) {
+                  const style = window.getComputedStyle(current);
+                  const rect = current.getBoundingClientRect();
+                  const overlayPosition =
+                    style.position === 'fixed' || style.position === 'absolute';
+                  const reasonableSize =
+                    rect.width <= window.innerWidth * 0.75 &&
+                    rect.height <= window.innerHeight * 0.75;
+
+                  if (overlayPosition && reasonableSize &&
+                      (style.zIndex !== 'auto' || rect.bottom >= window.innerHeight * 0.5)) {
+                    target = current;
+                    break;
+                  }
+                  current = current.parentElement;
+                }
+
+                target.remove();
+              }
+
+              function scanForAds() {
+                try {
+                  selectors.forEach(function(selector) {
+                    document.querySelectorAll(selector).forEach(removeAd);
+                  });
+
+                  document.querySelectorAll('body *').forEach(function(element) {
+                    if (element.children.length !== 0) return;
+                    const label = (element.textContent || '').trim();
+                    if (label.length > 0 && label.length <= 40 &&
+                        /^1\s*win$/i.test(label)) {
+                      removeAd(element);
+                    }
+                  });
+                } catch (e) {}
+              }
+
+              scanForAds();
+
+              if (window.__maxiflix1WinObserver) {
+                window.__maxiflix1WinObserver.disconnect();
+              }
+              if (document.documentElement) {
+                window.__maxiflix1WinObserver = new MutationObserver(scanForAds);
+                window.__maxiflix1WinObserver.observe(document.documentElement, {
+                  childList: true,
+                  subtree: true,
+                  attributes: true,
+                  attributeFilter: ['src', 'href', 'class', 'id']
                 });
               }
             })();
