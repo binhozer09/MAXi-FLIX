@@ -17,6 +17,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: maxiflix-release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   publish-release:
     runs-on: ubuntu-latest
