@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.6"
+        default: "maxiflix-v1.8.7"
         type: string
 
 permissions:
@@ -126,7 +126,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "Bloqueio geral de anúncios por DNS e WebView, incluindo domínios maliciosos identificados nos diagnósticos, com proteção de banners e pop-ups."
+              "releaseNotes": "Correção da reprodução de vídeos, mantendo o bloqueio de anúncios e liberando os recursos do player Connatix."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -137,8 +137,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.6' }}
-          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.6' }}
+          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.7' }}
+          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.7' }}
           target_commitish: release/1.7.0
           generate_release_notes: true
           files: |
