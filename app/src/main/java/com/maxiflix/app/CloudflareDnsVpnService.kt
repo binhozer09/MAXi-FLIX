@@ -47,8 +47,12 @@ class CloudflareDnsVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        startForeground(NOTIFICATION_ID, buildNotification())
         if (vpnInterface == null) establishDnsTunnel()
+        if (vpnInterface != null) {
+            // Establish the VPN first so Android recognizes this as an active VPN app
+            // when validating the system-exempted foreground-service type.
+            startForeground(NOTIFICATION_ID, buildNotification())
+        }
         return START_STICKY
     }
 
