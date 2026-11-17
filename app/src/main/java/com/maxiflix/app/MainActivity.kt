@@ -6,6 +6,7 @@ import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageInfo
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -78,6 +79,7 @@ class MainActivity : AppCompatActivity() {
     private var pendingInstallAfterPermission = false
     private var customView: View? = null
     private var customViewCallback: WebChromeClient.CustomViewCallback? = null
+    private var previousRequestedOrientation: Int? = null
     private var dnsReceiverRegistered = false
     private var siteLoadStarted = false
     private var cacheRetryInProgress = false
@@ -516,31 +518,57 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun applyFullscreenVideoSizing() {
-        // Uma única aplicação por carregamento. Evita observar cada mutação da página:
-        // o catálogo altera o DOM continuamente ao abrir detalhes e players.
+        // Ajusta o vídeo ao espaço disponível sem cortar a imagem nem deformar a proporção.
+        // A regra também cobre players que não implementam o modo fullscreen nativo.
         val script = """
             (function() {
-              if (window.__maxiflixVideoFitInstalled) return;
-              window.__maxiflixVideoFitInstalled = true;
-              const style = document.createElement('style');
-              style.id = 'maxiflix-fullscreen-video-fit';
+              const styleId = 'maxiflix-fullscreen-video-fit';
+              let style = document.getElementById(styleId);
+              if (!style) {
+                style = document.createElement('style');
+                style.id = styleId;
+                (document.head || document.documentElement).appendChild(style);
+              }
               style.textContent = `
-                video:fullscreen, video:-webkit-full-screen {
-                  width: 100vw !important; height: 100vh !important;
-                  max-width: 100vw !important; max-height: 100vh !important;
-                  object-fit: contain !important; background: #000 !important;
-                }
-                :fullscreen video, :-webkit-full-screen video {
-                  width: 100% !important; height: 100% !important;
+                video {
+                  display: block !important;
+                  width: 100% !important;
+                  max-width: 100% !important;
+                  height: auto !important;
+                  max-height: calc(100vh - 88px) !important;
                   object-fit: contain !important;
+                  background: #000 !important;
                 }
+                video:fullscreen, video:-webkit-full-screen,
+                :fullscreen video, :-webkit-full-screen video {
+                  width: 100vw !important;
+                  height: 100vh !important;
+                  max-width: 100vw !important;
+                  max-height: 100vh !important;
+                  object-fit: contain !important;
+                  background: #000 !important;
+                }
+                video::-webkit-media-controls { z-index: 20 !important; }
+                .video-js, .jwplayer, [class*="video-player" i],
+                [id*="video-player" i] { max-width: 100% !important; }
               `;
-              (document.head || document.documentElement).appendChild(style);
+              if (!window.__maxiflixVideoFitEvents) {
+                window.__maxiflixVideoFitEvents = true;
+                document.addEventListener('fullscreenchange', function() {
+                  document.documentElement.classList.toggle(
+                    'maxiflix-video-fullscreen', !!document.fullscreenElement
+                  );
+                });
+                document.addEventListener('webkitfullscreenchange', function() {
+                  document.documentElement.classList.toggle(
+                    'maxiflix-video-fullscreen', !!document.webkitFullscreenElement
+                  );
+                });
+              }
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
     }
-
 
     private fun hideSiteBranding() {
         // Oculta a marca do site tanto no título quanto nos textos e logotipos visíveis.
@@ -921,10 +949,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
+        previousRequestedOrientation = requestedOrientation
         customView = view
         customViewCallback = callback
         mainContent.visibility = View.GONE
         fullscreenContainer.visibility = View.VISIBLE
+        fullscreenContainer.setBackgroundColor(android.graphics.Color.BLACK)
         fullscreenContainer.addView(
             view,
             FrameLayout.LayoutParams(
@@ -932,11 +962,18 @@ class MainActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         )
+
+        // Players widescreen passam a usar a orientação horizontal do aparelho.
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
         window.decorView.systemUiVisibility = (
             View.SYSTEM_UI_FLAG_FULLSCREEN
                 or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
                 or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                or View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             )
+        view.requestFocus()
     }
 
     private fun hideFullscreenView() {
@@ -946,8 +983,14 @@ class MainActivity : AppCompatActivity() {
         mainContent.visibility = View.VISIBLE
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_VISIBLE
         customView = null
-        customViewCallback?.onCustomViewHidden()
+
+        val orientationToRestore = previousRequestedOrientation
+        previousRequestedOrientation = null
+        if (orientationToRestore != null) requestedOrientation = orientationToRestore
+
+        val callback = customViewCallback
         customViewCallback = null
+        callback?.onCustomViewHidden()
     }
 
     private fun checkForUpdates(showLatestMessage: Boolean) {
