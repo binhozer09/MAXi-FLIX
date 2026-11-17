@@ -738,21 +738,6 @@ class MainActivity : AppCompatActivity() {
                         media: mediaUrl, fingerprint: fingerprint
                       }));
                     }
-                    const media = Array.from(node.querySelectorAll('iframe[src],img[src],a[href]'));
-                    const adMedia = media.some(function(child) {
-                      const value = child.getAttribute('src') || child.getAttribute('href') || '';
-                      if (isAdUrl(value)) return true;
-                      try {
-                        const host = new URL(value, location.href).hostname.toLowerCase();
-                        return host && host !== location.hostname &&
-                          (child.tagName === 'IFRAME' || child.tagName === 'IMG');
-                      } catch (_) { return false; }
-                    });
-                    const adCopy = /anúncio|publicidade|patrocinado|saiba mais|clique aqui/i
-                      .test((node.textContent || '').slice(0, 500));
-                    const hasClose = !!node.querySelector(
-                      '[aria-label*="fechar" i],[title*="fechar" i],.close,.fechar,[class*="close" i]'
-                    );
                     if (!floatingAd && !coversScreen) return;
                     console.log('MAXIFLIX_OVERLAY_REMOVED ' + fingerprint +
                       ' reason=' + (semanticAd ? 'semantic' : adMedia ? 'external-media' : adCopy && hasClose ? 'ad-copy-close' : 'large-overlay'));
