@@ -2,6 +2,8 @@ package com.maxiflix.app
 
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageInfo
@@ -18,6 +20,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
+import android.webkit.ConsoleMessage
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebSettings
@@ -42,6 +45,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
 import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -64,6 +69,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateStatus: TextView
     private lateinit var backButton: Button
     private lateinit var forwardButton: Button
+    private lateinit var diagnosticButton: Button
+    private val diagnosticLogs = ArrayDeque<String>()
+    private val diagnosticLock = Any()
 
     private val worker = Executors.newSingleThreadExecutor()
     private val updateBusy = AtomicBoolean(false)
@@ -204,6 +212,8 @@ class MainActivity : AppCompatActivity() {
         updateStatus = findViewById(R.id.updateStatus)
         backButton = findViewById(R.id.backButton)
         forwardButton = findViewById(R.id.forwardButton)
+        diagnosticButton = findViewById(R.id.diagnosticButton)
+        diagnosticButton.setOnClickListener { showDiagnosticReport() }
 
         backButton.setOnClickListener {
             if (siteWeb.canGoBack()) siteWeb.goBack()
@@ -366,6 +376,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                logDiagnostic("PAGE_START", safeUrl(url))
                 updateNavigationButtons()
             }
 
@@ -387,6 +398,7 @@ class MainActivity : AppCompatActivity() {
                 error: android.webkit.WebResourceError?
             ) {
                 super.onReceivedError(view, request, error)
+                logDiagnostic("WEB_ERROR", "mainFrame=${request?.isForMainFrame}; code=${error?.errorCode}; description=${error?.description}; url=${safeUrl(request?.url?.toString())}")
                 if (request?.isForMainFrame == true && !hasValidatedInternet() && !cacheRetryInProgress) {
                     val failedUrl = request.url.toString()
                     cacheRetryInProgress = true
@@ -405,7 +417,10 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest
             ): WebResourceResponse? {
-                if (isBlockedAdHost(request.url)) return blockedAdResponse()
+                if (isBlockedAdHost(request.url)) {
+                    logDiagnostic("BLOCK_RESOURCE", "${request.method} ${safeUrl(request.url.toString())}")
+                    return blockedAdResponse()
+                }
                 return super.shouldInterceptRequest(view, request)
             }
 
@@ -414,7 +429,10 @@ class MainActivity : AppCompatActivity() {
                 url: String?
             ): WebResourceResponse? {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
-                if (uri != null && isBlockedAdHost(uri)) return blockedAdResponse()
+                if (uri != null && isBlockedAdHost(uri)) {
+                    logDiagnostic("BLOCK_RESOURCE_LEGACY", safeUrl(url))
+                    return blockedAdResponse()
+                }
                 return super.shouldInterceptRequest(view, url)
             }
 
@@ -423,7 +441,8 @@ class MainActivity : AppCompatActivity() {
                 request: WebResourceRequest
             ): Boolean {
                 val uri = request.url
-                if (isBlockedAdHost(uri)) return true
+                if (isBlockedAdHost(uri)) { logDiagnostic("BLOCK_NAVIGATION", safeUrl(uri.toString())); return true }
+                logDiagnostic("NAVIGATION", "mainFrame=${request.isForMainFrame}; ${safeUrl(uri.toString())}")
 
                 val scheme = uri.scheme?.lowercase(Locale.ROOT)
                 // Abre páginas de filmes, detalhes e players HTTPS dentro do MAXi-FLIX,
@@ -434,13 +453,19 @@ class MainActivity : AppCompatActivity() {
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
                     ?: return true
-                if (isBlockedAdHost(uri)) return true
+                if (isBlockedAdHost(uri)) { logDiagnostic("BLOCK_NAVIGATION_LEGACY", safeUrl(uri.toString())); return true }
+                logDiagnostic("NAVIGATION_LEGACY", safeUrl(uri.toString()))
                 val scheme = uri.scheme?.lowercase(Locale.ROOT)
                 return scheme != "http" && scheme != "https"
             }
         }
 
         siteWeb.webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(message: ConsoleMessage?): Boolean {
+                message?.let { logDiagnostic("JS_CONSOLE", "${it.messageLevel()}: ${it.message().take(240)} (${safeUrl(it.sourceId())}:${it.lineNumber()})") }
+                return super.onConsoleMessage(message)
+            }
+
             override fun onShowCustomView(
                 view: View?,
                 callback: CustomViewCallback?
@@ -709,6 +734,57 @@ class MainActivity : AppCompatActivity() {
         val capabilities = manager.getNetworkCapabilities(network) ?: return false
         return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
             capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    private fun safeUrl(raw: String?): String {
+        if (raw.isNullOrBlank()) return "(sem URL)"
+        return runCatching {
+            val uri = Uri.parse(raw)
+            val host = uri.host ?: "(sem host)"
+            val path = uri.encodedPath.orEmpty().take(180)
+            "\${uri.scheme}://$host$path"
+        }.getOrDefault("(URL inválida)")
+    }
+
+    private fun logDiagnostic(event: String, detail: String) {
+        val stamp = SimpleDateFormat("HH:mm:ss.SSS", Locale.US).format(Date())
+        val line = "$stamp | $event | \${detail.replace('\n', ' ').take(500)}"
+        synchronized(diagnosticLock) {
+            diagnosticLogs.addLast(line)
+            while (diagnosticLogs.size > 400) diagnosticLogs.removeFirst()
+        }
+        Log.d(TAG, "DIAG $line")
+    }
+
+    private fun showDiagnosticReport() {
+        val report = synchronized(diagnosticLock) {
+            buildString {
+                appendLine("MAXi-FLIX — RELATÓRIO DE DIAGNÓSTICO")
+                appendLine("Versão: \${BuildConfig.VERSION_NAME} (\${BuildConfig.VERSION_CODE})")
+                appendLine("Android: \${Build.VERSION.RELEASE} / SDK \${Build.VERSION.SDK_INT}")
+                appendLine("Página atual: \${safeUrl(siteWeb.url)}")
+                appendLine("Eventos registrados: \${diagnosticLogs.size}")
+                appendLine("URLs sem parâmetros de consulta; cookies e cabeçalhos privados não são coletados.")
+                appendLine("--- EVENTOS ---")
+                diagnosticLogs.forEach { appendLine(it) }
+            }
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Diagnóstico do MAXi-FLIX")
+            .setMessage("Reproduza a tela branca e toque em Copiar relatório. Depois, cole o texto aqui na conversa.")
+            .setPositiveButton("Copiar relatório") { _, _ ->
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("MAXi-FLIX diagnóstico", report))
+                Toast.makeText(this, "Relatório copiado. Cole aqui na conversa.", Toast.LENGTH_LONG).show()
+                logDiagnostic("REPORT_COPIED", "events=\${diagnosticLogs.size}")
+            }
+            .setNeutralButton("Limpar logs") { _, _ ->
+                synchronized(diagnosticLock) { diagnosticLogs.clear() }
+                logDiagnostic("LOGS_CLEARED", "manual")
+                Toast.makeText(this, "Logs limpos.", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Fechar", null)
+            .show()
     }
 
     private fun isAllowedMainFrameUrl(uri: Uri): Boolean {
