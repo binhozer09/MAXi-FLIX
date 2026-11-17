@@ -196,7 +196,8 @@ class MainActivity : AppCompatActivity() {
             "appsflyer.com", "adjust.com", "branch.io", "app.link",
             "onelink.me", "linksynergy.com", "awin1.com", "impact.com",
             "redirectingat.com", "linkvertise.com", "loot-link.com",
-            "lootlinks.co", "ouo.io", "ouo.press", "shorte.st"
+            "lootlinks.co", "ouo.io", "ouo.press", "shorte.st",
+            "acidaldimin.qpon", "mywondertrip.com"
         )
     }
 
