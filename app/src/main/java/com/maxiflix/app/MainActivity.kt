@@ -183,7 +183,12 @@ class MainActivity : AppCompatActivity() {
             "1win.run",
             "1win.link",
             "1win.games",
-            "1win.live"
+            "1win.live",
+            "shopee.com.br", "shopee.com", "shope.ee",
+            "appsflyer.com", "adjust.com", "branch.io", "app.link",
+            "onelink.me", "linksynergy.com", "awin1.com", "impact.com",
+            "redirectingat.com", "linkvertise.com", "loot-link.com",
+            "lootlinks.co", "ouo.io", "ouo.press", "shorte.st"
         )
     }
 
@@ -650,6 +655,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun isBlockedAdHost(uri: Uri): Boolean {
         val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+        // Shopee e rastreadores afiliados são bloqueados em qualquer navegação/recurso.
+        if (host.contains("shopee") || host.contains("appsflyer") ||
+            host.contains("doubleclick") || host.contains("googlesyndication")) return true
         return BLOCKED_AD_DOMAINS.any { domain ->
             host == domain || host.endsWith(".$domain")
         }
