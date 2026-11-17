@@ -567,6 +567,32 @@ class MainActivity : AppCompatActivity() {
                     ].some(function(marker) { return url.indexOf(marker) !== -1; });
                   } catch (_) { return false; }
                 }
+                function removeAdOverlays(root) {
+                  const scope = root && root.querySelectorAll ? root : document;
+                  const markers = /(^|[-_\\s])(ad|ads|advert|advertisement|popup|popunder|interstitial|sponsor)([-_\\s]|$)/i;
+                  const nodes = scope.querySelectorAll(
+                    '[id],[class],[data-ad],[aria-label]'
+                  );
+                  nodes.forEach(function(node) {
+                    if (!node || node === document.body || node === document.documentElement) return;
+                    if (node.matches('video,audio,source,button,[role="button"]')) return;
+                    if (node.querySelector('video,audio,[class*="player" i],[id*="player" i]')) return;
+                    const identity = [
+                      node.id || '', typeof node.className === 'string' ? node.className : '',
+                      node.getAttribute('data-ad') || '', node.getAttribute('aria-label') || ''
+                    ].join(' ');
+                    if (!markers.test(identity)) return;
+                    const rect = node.getBoundingClientRect();
+                    const area = Math.max(0, rect.width) * Math.max(0, rect.height);
+                    const viewport = Math.max(1, innerWidth * innerHeight);
+                    const style = getComputedStyle(node);
+                    const coversScreen = area > viewport * 0.30 &&
+                      (style.position === 'fixed' || style.position === 'absolute' ||
+                       rect.width > innerWidth * 0.85 || rect.height > innerHeight * 0.65);
+                    if (!coversScreen) return;
+                    node.remove();
+                  });
+                }
                 function cleanAdFrames(root) {
                   const scope = root && root.querySelectorAll ? root : document;
                   scope.querySelectorAll('iframe[src], frame[src]').forEach(function(frame) {
@@ -586,7 +612,7 @@ class MainActivity : AppCompatActivity() {
                   });
                 }
                 if (!window.__maxiflixPopupGuard) {
-                  window.__maxiflixPopupGuard = true;
+                  window.__maxiflixPopupGuard = true;\n                  window.open = function() { return null; };
                   window.open = function() { return null; };
                   window.addEventListener('click', function(event) {
                     const link = event.target && event.target.closest
@@ -621,7 +647,7 @@ class MainActivity : AppCompatActivity() {
                     });
                   }, false);
                 }
-                cleanAdFrames(document);
+                cleanAdFrames(document);\n                removeAdOverlays(document);
                 if (!window.__maxiflixAdObserver && document.documentElement) {
                   window.__maxiflixAdObserver = new MutationObserver(function(records) {
                     records.forEach(function(record) {
@@ -631,7 +657,7 @@ class MainActivity : AppCompatActivity() {
                               isAdUrl(node.getAttribute('src') || node.src || '')) {
                             node.remove();
                           } else {
-                            cleanAdFrames(node);
+                            cleanAdFrames(node);\n                            removeAdOverlays(node);
                           }
                         }
                       });
