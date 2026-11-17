@@ -553,9 +553,18 @@ class MainActivity : AppCompatActivity() {
                 function isAdUrl(value) {
                   try {
                     const host = new URL(value, location.href).hostname.toLowerCase();
-                    return blocked.some(function(domain) {
+                    if (blocked.some(function(domain) {
                       return host === domain || host.endsWith('.' + domain);
-                    });
+                    })) return true;
+                    const url = String(value || '').toLowerCase();
+                    return [
+                      '/adserver','/ad-serving','/ads/','/advertising/',
+                      '/clickunder','/popunder','/popup-ad','/popupads',
+                      '/banner-ad','/banner_ads','/adclick','/clickad',
+                      'doubleclick','googlesyndication','googleadservices',
+                      'adsterra','exoclick','propellerads','popcash',
+                      'popads','trafficstars','monetag','appsflyer','shopee','1win.'
+                    ].some(function(marker) { return url.indexOf(marker) !== -1; });
                   } catch (_) { return false; }
                 }
                 function cleanAdFrames(root) {
@@ -685,12 +694,26 @@ class MainActivity : AppCompatActivity() {
 
     private fun isBlockedAdHost(uri: Uri): Boolean {
         val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
-        // Shopee e rastreadores afiliados são bloqueados em qualquer navegação/recurso.
+        // Motor local de filtros: bloqueia domínios conhecidos e padrões inequívocos
+        // de chamadas publicitárias em URLs, inclusive quando o anúncio usa outro host.
         if (host.contains("shopee") || host.contains("appsflyer") ||
             host.contains("doubleclick") || host.contains("googlesyndication")) return true
-        return BLOCKED_AD_DOMAINS.any { domain ->
-            host == domain || host.endsWith(".$domain")
-        }
+        if (BLOCKED_AD_DOMAINS.any { domain ->
+                host == domain || host.endsWith(".$domain")
+            }) return true
+
+        val pathAndQuery = (uri.encodedPath.orEmpty() + "?" + uri.encodedQuery.orEmpty())
+            .lowercase(Locale.ROOT)
+        val adUrlMarkers = listOf(
+            "/adserver", "/ad-serving", "/ads/", "/advertising/",
+            "/clickunder", "/popunder", "/popup-ad", "/popupads",
+            "/banner-ad", "/banner_ads", "/adclick", "/clickad",
+            "doubleclick", "googlesyndication", "googleadservices",
+            "adsterra", "exoclick", "propellerads", "popcash",
+            "popads", "trafficstars", "monetag", "appsflyer",
+            "shopee", "1win."
+        )
+        return adUrlMarkers.any { marker -> pathAndQuery.contains(marker) }
     }
 
     private fun blockedAdResponse(): WebResourceResponse {
