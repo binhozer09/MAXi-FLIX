@@ -12,6 +12,8 @@ jobs:
   publish-release:
     runs-on: ubuntu-latest
     env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
       MAXIFLIX_KEYSTORE_BASE64: ${{ secrets.MAXIFLIX_KEYSTORE_BASE64 }}
       MAXIFLIX_KEYSTORE_PASSWORD: ${{ secrets.MAXIFLIX_KEYSTORE_PASSWORD }}
       MAXIFLIX_KEY_ALIAS: ${{ secrets.MAXIFLIX_KEY_ALIAS }}
@@ -28,8 +30,14 @@ jobs:
           java-version: "17"
           cache: gradle
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
