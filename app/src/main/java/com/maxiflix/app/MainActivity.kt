@@ -220,7 +220,15 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDnsService() {
         val serviceIntent = Intent(this, CloudflareDnsVpnService::class.java)
-        ContextCompat.startForegroundService(this, serviceIntent)
+        runCatching {
+            ContextCompat.startForegroundService(this, serviceIntent)
+        }.onFailure { error ->
+            Log.e(TAG, "DNS opcional indisponível; abrindo o site pela rede normal", error)
+            loadSiteAndCheckUpdates()
+        }
+        // Não deixa o carregamento do site depender do túnel DNS.
+        // Se o serviço não responder, o WebView usa a conexão normal do Android.
+        siteWeb.postDelayed({ loadSiteAndCheckUpdates() }, 3500L)
     }
 
     private fun loadSiteAndCheckUpdates() {
@@ -262,7 +270,7 @@ class MainActivity : AppCompatActivity() {
             setSupportMultipleWindows(false)
             allowFileAccess = false
             allowContentAccess = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             // Cache HTTP em disco e DOM Storage ficam no sandbox privado do aplicativo.
             cacheMode = if (hasValidatedInternet()) WebSettings.LOAD_DEFAULT
                 else WebSettings.LOAD_CACHE_ELSE_NETWORK
