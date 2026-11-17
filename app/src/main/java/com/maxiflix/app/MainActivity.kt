@@ -258,7 +258,7 @@ class MainActivity : AppCompatActivity() {
             databaseEnabled = true
             loadsImagesAutomatically = true
             mediaPlaybackRequiresUserGesture = true
-            javaScriptCanOpenWindowsAutomatically = false
+            javaScriptCanOpenWindowsAutomatically = true
             setSupportMultipleWindows(false)
             allowFileAccess = false
             allowContentAccess = false
@@ -332,19 +332,17 @@ class MainActivity : AppCompatActivity() {
                 if (isBlockedAdHost(uri)) return true
 
                 val scheme = uri.scheme?.lowercase(Locale.ROOT)
-                if (scheme != "http" && scheme != "https") return true
-
-                // Mantém players e vídeos de terceiros dentro de iframes,
-                // mas impede que a página principal saia do domínio do site.
-                if (!request.isForMainFrame) return false
-                return !isAllowedMainFrameUrl(uri)
+                // Abre páginas de filmes, detalhes e players HTTPS dentro do MAXi-FLIX,
+                // mesmo quando o site usa outro domínio para a reprodução.
+                return scheme != "http" && scheme != "https"
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
                     ?: return true
                 if (isBlockedAdHost(uri)) return true
-                return !isAllowedMainFrameUrl(uri)
+                val scheme = uri.scheme?.lowercase(Locale.ROOT)
+                return scheme != "http" && scheme != "https"
             }
         }
 
