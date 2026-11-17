@@ -187,7 +187,7 @@ class CloudflareDnsVpnService : VpnService() {
                 }
             }.getOrNull()
 
-            if (!response.isNullOrEmpty()) return response
+            if (response != null && response.isNotEmpty()) return response
         }
 
         return null
