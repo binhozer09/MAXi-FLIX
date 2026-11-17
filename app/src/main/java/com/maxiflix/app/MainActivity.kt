@@ -138,6 +138,42 @@ class MainActivity : AppCompatActivity() {
             "hilltopads.net",
             "onclickads.net",
             "onclickalgo.com",
+            "trafficstars.com",
+            "tsyndicate.com",
+            "exosrv.com",
+            "exoclick.com",
+            "ad-maven.com",
+            "admaven.com",
+            "adnium.com",
+            "monetag.com",
+            "propeller-tracking.com",
+            "push.house",
+            "pushwelcome.com",
+            "richpush.co",
+            "media.net",
+            "sharethrough.com",
+            "lijit.com",
+            "bidswitch.net",
+            "bidvertiser.com",
+            "yieldmo.com",
+            "smaato.com",
+            "inmobi.com",
+            "unityads.unity3d.com",
+            "applovin.com",
+            "ironsrc.com",
+            "vungle.com",
+            "tapjoy.com",
+            "adcolony.com",
+            "adpushup.com",
+            "adthrive.com",
+            "ezoic.net",
+            "ezoic.com",
+            "popunder.net",
+            "popunder.com",
+            "adfoc.us",
+            "bc.vc",
+            "clk.sh",
+            "shortest.link",
             "mgid.com",
             "revcontent.com",
             "adskeeper.co.uk",
@@ -500,6 +536,34 @@ class MainActivity : AppCompatActivity() {
         val script = """
             (function() {
               try {
+                // Bloqueia pop-ups e janelas de publicidade sem interferir no player atual.
+                if (!window.__maxiflixPopupGuard) {
+                  window.__maxiflixPopupGuard = true;
+                  window.open = function() { return null; };
+                  window.addEventListener('click', function(event) {
+                    const link = event.target && event.target.closest
+                      ? event.target.closest('a[href]') : null;
+                    if (!link) return;
+                    try {
+                      const target = new URL(link.href, location.href);
+                      const host = target.hostname.toLowerCase();
+                      const adHosts = [
+                        'doubleclick.net','googlesyndication.com','googleadservices.com',
+                        'popads.net','popcash.net','propellerads.com','adsterra.com',
+                        'exoclick.com','exosrv.com','trafficstars.com','tsyndicate.com',
+                        'juicyads.com','trafficjunky.net','hilltopads.net','onclickads.net',
+                        'onclickalgo.com','ad-maven.com','admaven.com','monetag.com',
+                        '1win.com','1win.bet','1win.tv','1win.run','1win.link'
+                      ];
+                      if (adHosts.some(function(domain) {
+                        return host === domain || host.endsWith('.' + domain);
+                      })) {
+                        event.preventDefault();
+                        event.stopImmediatePropagation();
+                      }
+                    } catch (_) {}
+                  }, true);
+                }
                 const styleId = 'maxiflix-ad-cleanup';
                 if (!document.getElementById(styleId)) {
                   const style = document.createElement('style');
@@ -510,6 +574,9 @@ class MainActivity : AppCompatActivity() {
                     'iframe[src*="popads" i]',
                     'iframe[src*="popcash" i]',
                     'iframe[src*="1win" i]',
+                    'iframe[src*="exoclick" i]',
+                    'iframe[src*="trafficstars" i]',
+                    'iframe[src*="propeller" i]',
                     'ins.adsbygoogle',
                     '.adsbygoogle',
                     '[id^="google_ads"]',
@@ -517,7 +584,10 @@ class MainActivity : AppCompatActivity() {
                     '[class*="ad-banner" i]',
                     '[class*="advertisement" i]',
                     '[data-ad-slot]',
-                    '[data-ad-client]'
+                    '[data-ad-client]',
+                    '[aria-label*="advertisement" i]',
+                    '[aria-label*="anúncio" i]',
+                    '[title*="advertisement" i]'
                   ].join(',') + '{display:none!important;visibility:hidden!important;pointer-events:none!important}';
                   (document.head || document.documentElement).appendChild(style);
                 }
@@ -527,6 +597,9 @@ class MainActivity : AppCompatActivity() {
                   'iframe[src*="popads" i]',
                   'iframe[src*="popcash" i]',
                   'iframe[src*="1win" i]',
+                  'iframe[src*="exoclick" i]',
+                  'iframe[src*="trafficstars" i]',
+                  'iframe[src*="propeller" i]',
                   'a[href*="1win" i]',
                   'img[src*="1win" i]',
                   'img[alt*="1win" i]',
