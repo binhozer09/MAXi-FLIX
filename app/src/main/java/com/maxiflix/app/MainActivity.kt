@@ -85,6 +85,7 @@ class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MAXI_FLIX"
         private const val SITE_URL = "https://www18.redecanais.in/"
+        private const val SITE_HOST = "redecanais.in"
         private const val RELEASE_API =
             "https://api.github.com/repos/binhozer09/MAXi-FLIX/releases/latest"
         private const val APK_ASSET_NAME = "MAXi-FLIX.apk"
@@ -258,16 +259,23 @@ class MainActivity : AppCompatActivity() {
                 view: WebView?,
                 request: WebResourceRequest
             ): Boolean {
-                if (isBlockedAdHost(request.url)) return true
-                val scheme = request.url.scheme?.lowercase(Locale.ROOT)
-                return scheme != "http" && scheme != "https"
+                val uri = request.url
+                if (isBlockedAdHost(uri)) return true
+
+                val scheme = uri.scheme?.lowercase(Locale.ROOT)
+                if (scheme != "http" && scheme != "https") return true
+
+                // Mantém players e vídeos de terceiros dentro de iframes,
+                // mas impede que a página principal saia do domínio do site.
+                if (!request.isForMainFrame) return false
+                return !isAllowedMainFrameUrl(uri)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
                 val uri = runCatching { Uri.parse(url.orEmpty()) }.getOrNull()
-                if (uri != null && isBlockedAdHost(uri)) return true
-                val scheme = uri?.scheme?.lowercase(Locale.ROOT)
-                return scheme != "http" && scheme != "https"
+                    ?: return true
+                if (isBlockedAdHost(uri)) return true
+                return !isAllowedMainFrameUrl(uri)
             }
         }
 
@@ -293,6 +301,13 @@ class MainActivity : AppCompatActivity() {
                 return false
             }
         }
+    }
+
+    private fun isAllowedMainFrameUrl(uri: Uri): Boolean {
+        val scheme = uri.scheme?.lowercase(Locale.ROOT)
+        val host = uri.host?.lowercase(Locale.ROOT)?.trimEnd('.') ?: return false
+        if (scheme != "http" && scheme != "https") return false
+        return host == SITE_HOST || host.endsWith(".$SITE_HOST")
     }
 
     private fun isBlockedAdHost(uri: Uri): Boolean {
