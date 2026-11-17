@@ -537,88 +537,94 @@ class MainActivity : AppCompatActivity() {
 
 
     private fun hide1WinAds() {
-        // Remove formatos comuns de publicidade sem tocar nos cards de filmes e players.
+        // Remove quadros de publicidade inseridos depois do carregamento sem tocar no player.
         val script = """
             (function() {
               try {
-                // Bloqueia pop-ups e janelas de publicidade sem interferir no player atual.
+                const blocked = [
+                  'shopee.com','shopee.com.br','shope.ee','appsflyer.com',
+                  'doubleclick.net','googlesyndication.com','googleadservices.com',
+                  'popads.net','popcash.net','propellerads.com','adsterra.com',
+                  'exoclick.com','exosrv.com','trafficstars.com','tsyndicate.com',
+                  'juicyads.com','trafficjunky.net','hilltopads.net','onclickads.net',
+                  'onclickalgo.com','ad-maven.com','admaven.com','monetag.com',
+                  '1win.com','1win.bet','1win.tv','1win.run','1win.link'
+                ];
+                function isAdUrl(value) {
+                  try {
+                    const host = new URL(value, location.href).hostname.toLowerCase();
+                    return blocked.some(function(domain) {
+                      return host === domain || host.endsWith('.' + domain);
+                    });
+                  } catch (_) { return false; }
+                }
+                function cleanAdFrames(root) {
+                  const scope = root && root.querySelectorAll ? root : document;
+                  scope.querySelectorAll('iframe[src], frame[src]').forEach(function(frame) {
+                    if (!isAdUrl(frame.getAttribute('src') || frame.src || '')) return;
+                    frame.style.setProperty('display', 'none', 'important');
+                    frame.style.setProperty('pointer-events', 'none', 'important');
+                    const parent = frame.parentElement;
+                    frame.remove();
+                    if (parent && parent !== document.body && parent !== document.documentElement) {
+                      const hasVideo = parent.querySelector('video, audio, iframe:not([src]), [class*="player" i], [id*="player" i]');
+                      const text = (parent.textContent || '').trim();
+                      if (!hasVideo && text.length < 80) {
+                        parent.style.setProperty('display', 'none', 'important');
+                        parent.style.setProperty('pointer-events', 'none', 'important');
+                      }
+                    }
+                  });
+                }
                 if (!window.__maxiflixPopupGuard) {
                   window.__maxiflixPopupGuard = true;
                   window.open = function() { return null; };
                   window.addEventListener('click', function(event) {
                     const link = event.target && event.target.closest
                       ? event.target.closest('a[href]') : null;
-                    if (!link) return;
-                    try {
-                      const target = new URL(link.href, location.href);
-                      const host = target.hostname.toLowerCase();
-                      const adHosts = [
-                        'doubleclick.net','googlesyndication.com','googleadservices.com',
-                        'popads.net','popcash.net','propellerads.com','adsterra.com',
-                        'exoclick.com','exosrv.com','trafficstars.com','tsyndicate.com',
-                        'juicyads.com','trafficjunky.net','hilltopads.net','onclickads.net',
-                        'onclickalgo.com','ad-maven.com','admaven.com','monetag.com',
-                        '1win.com','1win.bet','1win.tv','1win.run','1win.link'
-                      ];
-                      if (adHosts.some(function(domain) {
-                        return host === domain || host.endsWith('.' + domain);
-                      })) {
-                        event.preventDefault();
-                        event.stopImmediatePropagation();
-                      }
-                    } catch (_) {}
+                    if (link && isAdUrl(link.href)) {
+                      event.preventDefault();
+                      event.stopImmediatePropagation();
+                    }
                   }, true);
+                }
+                cleanAdFrames(document);
+                if (!window.__maxiflixAdObserver && document.documentElement) {
+                  window.__maxiflixAdObserver = new MutationObserver(function(records) {
+                    records.forEach(function(record) {
+                      record.addedNodes.forEach(function(node) {
+                        if (node.nodeType === 1) {
+                          if (node.matches && node.matches('iframe[src],frame[src]') &&
+                              isAdUrl(node.getAttribute('src') || node.src || '')) {
+                            node.remove();
+                          } else {
+                            cleanAdFrames(node);
+                          }
+                        }
+                      });
+                    });
+                  });
+                  window.__maxiflixAdObserver.observe(document.documentElement, {
+                    childList: true, subtree: true
+                  });
                 }
                 const styleId = 'maxiflix-ad-cleanup';
                 if (!document.getElementById(styleId)) {
                   const style = document.createElement('style');
                   style.id = styleId;
                   style.textContent = [
-                    'iframe[src*="doubleclick" i]',
-                    'iframe[src*="googlesyndication" i]',
-                    'iframe[src*="popads" i]',
-                    'iframe[src*="popcash" i]',
-                    'iframe[src*="1win" i]',
-                    'iframe[src*="exoclick" i]',
-                    'iframe[src*="trafficstars" i]',
-                    'iframe[src*="propeller" i]',
-                    'ins.adsbygoogle',
-                    '.adsbygoogle',
-                    '[id^="google_ads"]',
-                    '[id*="ad-container" i]',
-                    '[class*="ad-banner" i]',
-                    '[class*="advertisement" i]',
-                    '[data-ad-slot]',
-                    '[data-ad-client]',
-                    '[aria-label*="advertisement" i]',
-                    '[aria-label*="anúncio" i]',
-                    '[title*="advertisement" i]'
+                    'iframe[src*="shopee" i]','iframe[src*="appsflyer" i]',
+                    'iframe[src*="doubleclick" i]','iframe[src*="googlesyndication" i]',
+                    'iframe[src*="popads" i]','iframe[src*="popcash" i]',
+                    'iframe[src*="1win" i]','iframe[src*="exoclick" i]',
+                    'iframe[src*="trafficstars" i]','iframe[src*="propeller" i]',
+                    'ins.adsbygoogle','.adsbygoogle','[id^="google_ads"]',
+                    '[id*="ad-container" i]','[class*="ad-banner" i]',
+                    '[class*="advertisement" i]','[data-ad-slot]','[data-ad-client]',
+                    '[aria-label*="advertisement" i]','[aria-label*="anúncio" i]'
                   ].join(',') + '{display:none!important;visibility:hidden!important;pointer-events:none!important}';
                   (document.head || document.documentElement).appendChild(style);
                 }
-                const selectors = [
-                  'iframe[src*="doubleclick" i]',
-                  'iframe[src*="googlesyndication" i]',
-                  'iframe[src*="popads" i]',
-                  'iframe[src*="popcash" i]',
-                  'iframe[src*="1win" i]',
-                  'iframe[src*="exoclick" i]',
-                  'iframe[src*="trafficstars" i]',
-                  'iframe[src*="propeller" i]',
-                  'a[href*="1win" i]',
-                  'img[src*="1win" i]',
-                  'img[alt*="1win" i]',
-                  'ins.adsbygoogle',
-                  '.adsbygoogle',
-                  '[id^="google_ads"]',
-                  '[data-ad-slot]',
-                  '[data-ad-client]'
-                ];
-                selectors.forEach(function(selector) {
-                  document.querySelectorAll(selector).forEach(function(el) {
-                    if (el && el !== document.body && el !== document.documentElement) el.remove();
-                  });
-                });
               } catch (_) {}
             })();
         """.trimIndent()
