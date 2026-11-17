@@ -379,173 +379,70 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+
     private fun applyFullscreenVideoSizing() {
+        // Uma única aplicação por carregamento. Evita observar cada mutação da página:
+        // o catálogo altera o DOM continuamente ao abrir detalhes e players.
         val script = """
             (function() {
               if (window.__maxiflixVideoFitInstalled) return;
               window.__maxiflixVideoFitInstalled = true;
-              const styleId = 'maxiflix-fullscreen-video-fit';
-              function installStyle(doc) {
-                try {
-                  if (!doc || doc.getElementById(styleId)) return;
-                  const style = doc.createElement('style');
-                  style.id = styleId;
-                  style.textContent = `
-                    video:fullscreen, video:-webkit-full-screen {
-                      width: 100vw !important;
-                      height: 100vh !important;
-                      max-width: 100vw !important;
-                      max-height: 100vh !important;
-                      object-fit: cover !important;
-                      background: #000 !important;
-                    }
-                    :fullscreen video, :-webkit-full-screen video {
-                      width: 100% !important;
-                      height: 100% !important;
-                      object-fit: cover !important;
-                    }
-                  `;
-                  (doc.head || doc.documentElement).appendChild(style);
-                } catch (_) {}
-              }
-              function scan() {
-                installStyle(document);
-                document.querySelectorAll('iframe').forEach(function(frame) {
-                  try { installStyle(frame.contentDocument); } catch (_) {}
-                });
-              }
-              scan();
-              document.addEventListener('fullscreenchange', scan, true);
-              document.addEventListener('webkitfullscreenchange', scan, true);
-              new MutationObserver(scan).observe(document.documentElement, {
-                childList: true, subtree: true
-              });
+              const style = document.createElement('style');
+              style.id = 'maxiflix-fullscreen-video-fit';
+              style.textContent = `
+                video:fullscreen, video:-webkit-full-screen {
+                  width: 100vw !important; height: 100vh !important;
+                  max-width: 100vw !important; max-height: 100vh !important;
+                  object-fit: contain !important; background: #000 !important;
+                }
+                :fullscreen video, :-webkit-full-screen video {
+                  width: 100% !important; height: 100% !important;
+                  object-fit: contain !important;
+                }
+              `;
+              (document.head || document.documentElement).appendChild(style);
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
     }
+
 
     private fun hideSiteBranding() {
+        // Busca limitada a elementos de marca; não percorre body* nem instala
+        // MutationObserver, que disparava varreduras completas a cada clique.
         val script = """
             (function() {
-              const pattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
-              function hideBranding() {
-                try {
-                  document.title = 'MAXi-FLIX';
-                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label]').forEach(function(el) {
-                    const label = [
-                      el.getAttribute('alt'),
-                      el.getAttribute('title'),
-                      el.getAttribute('aria-label')
-                    ].filter(Boolean).join(' ');
-                    if (pattern.test(label)) {
-                      el.style.setProperty('display', 'none', 'important');
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
-                        el.parentElement.style.setProperty('display', 'none', 'important');
-                      }
-                    }
-                  });
-                  document.querySelectorAll('body *').forEach(function(el) {
-                    if (el.children.length !== 0) return;
-                    const label = (el.textContent || '').trim();
-                    if (label.length > 0 && label.length < 80 && pattern.test(label)) {
-                      let target = el;
-                      const parent = el.parentElement;
-                      if (parent && parent.children.length <= 2 &&
-                          parent.textContent.trim().length < 100 &&
-                          pattern.test(parent.textContent)) {
-                        target = parent;
-                      }
-                      target.style.setProperty('display', 'none', 'important');
-                    }
-                  });
-                } catch (e) {}
-              }
-              hideBranding();
-              if (!window.__maxiflixBrandingObserver && document.documentElement) {
-                window.__maxiflixBrandingObserver = new MutationObserver(hideBranding);
-                window.__maxiflixBrandingObserver.observe(document.documentElement, {
-                  childList: true,
-                  subtree: true,
-                  characterData: true
+              try {
+                document.title = 'MAXi-FLIX';
+                const pattern = /rede\\s*(?:de\\s*)?canais(?:\\s*\\.?\\s*in)?/i;
+                document.querySelectorAll('img[alt],img[title],a[title],*[aria-label]').forEach(function(el) {
+                  const label = [el.getAttribute('alt'), el.getAttribute('title'),
+                    el.getAttribute('aria-label')].filter(Boolean).join(' ');
+                  if (pattern.test(label)) el.style.setProperty('display','none','important');
                 });
-              }
+              } catch (_) {}
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
     }
 
+
     private fun hide1WinAds() {
+        // Remoção pontual de anúncios conhecidos, sem varredura global/observer.
         val script = """
             (function() {
-              const selectors = [
-                'iframe[src*="1win" i]',
-                'a[href*="1win" i]',
-                'img[src*="1win" i]',
-                'img[alt*="1win" i]',
-                '[class*="1win" i]',
-                '[id*="1win" i]',
-                '[data-ad*="1win" i]'
-              ];
-
-              function removeAd(element) {
-                if (!element || element === document.body ||
-                    element === document.documentElement) return;
-
-                let target = element;
-                let current = element;
-
-                for (let i = 0; i < 7 && current && current.parentElement; i++) {
-                  const style = window.getComputedStyle(current);
-                  const rect = current.getBoundingClientRect();
-                  const overlayPosition =
-                    style.position === 'fixed' || style.position === 'absolute';
-                  const reasonableSize =
-                    rect.width <= window.innerWidth * 0.75 &&
-                    rect.height <= window.innerHeight * 0.75;
-
-                  if (overlayPosition && reasonableSize &&
-                      (style.zIndex !== 'auto' || rect.bottom >= window.innerHeight * 0.5)) {
-                    target = current;
-                    break;
-                  }
-                  current = current.parentElement;
-                }
-
-                target.remove();
-              }
-
-              function scanForAds() {
-                try {
-                  selectors.forEach(function(selector) {
-                    document.querySelectorAll(selector).forEach(removeAd);
+              try {
+                const selectors = [
+                  'iframe[src*="1win" i]', 'a[href*="1win" i]',
+                  'img[src*="1win" i]', 'img[alt*="1win" i]',
+                  '[class*="1win" i]', '[id*="1win" i]', '[data-ad*="1win" i]'
+                ];
+                selectors.forEach(function(selector) {
+                  document.querySelectorAll(selector).forEach(function(el) {
+                    if (el && el !== document.body && el !== document.documentElement) el.remove();
                   });
-
-                  document.querySelectorAll('body *').forEach(function(element) {
-                    if (element.children.length !== 0) return;
-                    const label = (element.textContent || '').trim();
-                    if (label.length > 0 && label.length <= 40 &&
-                        /^1\s*win$/i.test(label)) {
-                      removeAd(element);
-                    }
-                  });
-                } catch (e) {}
-              }
-
-              scanForAds();
-
-              if (window.__maxiflix1WinObserver) {
-                window.__maxiflix1WinObserver.disconnect();
-              }
-              if (document.documentElement) {
-                window.__maxiflix1WinObserver = new MutationObserver(scanForAds);
-                window.__maxiflix1WinObserver.observe(document.documentElement, {
-                  childList: true,
-                  subtree: true,
-                  attributes: true,
-                  attributeFilter: ['src', 'href', 'class', 'id']
                 });
-              }
+              } catch (_) {}
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
