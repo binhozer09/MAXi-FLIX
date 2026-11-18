@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private var siteLoadStarted = false
     private var cacheRetryInProgress = false
     private var restoredWebViewState = false
+    private var inAppDnsReady = false
 
     private val dnsReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -218,7 +219,10 @@ class MainActivity : AppCompatActivity() {
         backButton = findViewById(R.id.backButton)
         forwardButton = findViewById(R.id.forwardButton)
         diagnosticButton = findViewById(R.id.diagnosticButton)
-        diagnosticButton.setOnClickListener { showVpnSettings() }
+        diagnosticButton.setOnClickListener {
+            val status = if (inAppDnsReady) "DNS Cloudflare protegido dentro do MAXi-FLIX (sem VPN)." else "DNS interno ainda não está ativo."
+            Toast.makeText(this, status, Toast.LENGTH_LONG).show()
+        }
 
         backButton.setOnClickListener {
             if (siteWeb.canGoBack()) siteWeb.goBack()
@@ -244,10 +248,28 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        registerDnsReceiver()
-        val vpnEnabled = getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
-            .getBoolean("vpn_enabled", true)
-        if (vpnEnabled) startDnsProtection() else loadSiteAndCheckUpdates()
+        // O WebView só começa a navegar depois que o proxy local DoH estiver ativo.
+        // Nenhum VpnService ou permissão de VPN é iniciado neste fluxo experimental.
+        startInAppDnsProtection()
+    }
+
+    private fun startInAppDnsProtection() {
+        InAppCloudflareDnsProxy.get().start(this) { ready, error ->
+            runOnUiThread {
+                inAppDnsReady = ready
+                if (ready) {
+                    Log.i(TAG, "Cloudflare DoH interno ativo para o WebView.")
+                    loadSiteAndCheckUpdates()
+                } else {
+                    Log.e(TAG, "DNS interno indisponível: ${error ?: "erro desconhecido"}")
+                    Toast.makeText(
+                        this,
+                        "Não foi possível ativar o DNS Cloudflare interno. O site não será aberto sem essa proteção.",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     private fun registerDnsReceiver() {
@@ -1804,6 +1826,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         if (isFinishing) {
+            InAppCloudflareDnsProxy.get().stop()
             stopService(Intent(this, CloudflareDnsVpnService::class.java))
         }
         if (customView != null) hideFullscreenView()
