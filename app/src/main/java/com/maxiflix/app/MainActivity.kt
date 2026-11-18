@@ -74,6 +74,8 @@ class MainActivity : AppCompatActivity() {
     private val diagnosticLock = Any()
 
     private val worker = Executors.newSingleThreadExecutor()
+    // Persiste cookies fora da thread principal para evitar pausas na navegação.
+    private val persistenceWorker = Executors.newSingleThreadExecutor()
     private val updateBusy = AtomicBoolean(false)
     private var pendingInstallAfterPermission = false
     private var customView: View? = null
@@ -433,7 +435,10 @@ class MainActivity : AppCompatActivity() {
                 view?.settings?.cacheMode = WebSettings.LOAD_DEFAULT
                 url?.let { lastUrl -> getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
                     .edit().putString("last_page_url", lastUrl).apply() }
-                CookieManager.getInstance().flush()
+                persistenceWorker.execute {
+                    runCatching { CookieManager.getInstance().flush() }
+                        .onFailure { Log.w(TAG, "Falha ao persistir cookies em segundo plano", it) }
+                }
                 hideSiteBranding()
                 applyFullscreenVideoSizing()
                 installVideoSeekControls()
@@ -1833,6 +1838,7 @@ class MainActivity : AppCompatActivity() {
             dnsReceiverRegistered = false
         }
         worker.shutdownNow()
+        persistenceWorker.shutdown()
         if (::siteWeb.isInitialized) {
             CookieManager.getInstance().flush()
             siteWeb.destroy()
