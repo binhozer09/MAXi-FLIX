@@ -915,15 +915,10 @@ class MainActivity : AppCompatActivity() {
                 function removeAdOverlays(root) {
                   const scope = root && root.querySelectorAll ? root : document;
                   const candidates = new Set();
+                  // Nunca promove a busca para ancestrais: cards de filmes podem
+                  // compartilhar contêineres com overlays publicitários.
                   if (scope !== document && scope.nodeType === 1) {
                     candidates.add(scope);
-                    let ancestor = scope.parentElement;
-                    let depth = 0;
-                    while (ancestor && ancestor !== document.body &&
-                           ancestor !== document.documentElement && depth++ < 4) {
-                      candidates.add(ancestor);
-                      ancestor = ancestor.parentElement;
-                    }
                   }
                   scope.querySelectorAll('[id],[class],[data-ad],[aria-label],iframe,img,a').forEach(function(node) {
                     candidates.add(node);
@@ -938,10 +933,15 @@ class MainActivity : AppCompatActivity() {
                       node.id || '', typeof node.className === 'string' ? node.className : '',
                       node.getAttribute('data-ad') || '', node.getAttribute('aria-label') || ''
                     ].join(' ');
-                    const semanticAd = markers.test(identity) ||
-                      /anúncio|publicidade|advertisement|patrocinado/i.test(
-                        node.getAttribute('aria-label') || ''
-                      );
+                    const hasAdLabel = /anúncio|publicidade|advertisement|patrocinado/i
+                      .test(node.getAttribute('aria-label') || '');
+                    const semanticMarker = markers.test(identity) || hasAdLabel;
+                    // Um contêiner com várias imagens/links costuma ser uma grade de conteúdo,
+                    // não um anúncio isolado. Preserva esses cards mesmo que um ancestral
+                    // tenha classe genérica contendo "ad".
+                    const descendantMedia = node.querySelectorAll('img,video,a[href],iframe').length;
+                    const semanticAd = semanticMarker && descendantMedia <= 1 &&
+                      (node.children.length <= 2 || node.matches('iframe,img,a'));
                     const rect = node.getBoundingClientRect();
                     const width = Math.max(0, rect.width);
                     const height = Math.max(0, rect.height);
