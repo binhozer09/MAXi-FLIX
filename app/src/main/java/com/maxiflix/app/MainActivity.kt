@@ -262,7 +262,7 @@ class MainActivity : AppCompatActivity() {
             setSupportMultipleWindows(false)
             allowFileAccess = false
             allowContentAccess = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             // Cache HTTP em disco e DOM Storage ficam no sandbox privado do aplicativo.
             cacheMode = if (hasValidatedInternet()) WebSettings.LOAD_DEFAULT
                 else WebSettings.LOAD_CACHE_ELSE_NETWORK
@@ -439,27 +439,10 @@ class MainActivity : AppCompatActivity() {
                 if (!element || element === document.body ||
                     element === document.documentElement) return;
 
-                let target = element;
-                let current = element;
-
-                for (let i = 0; i < 7 && current && current.parentElement; i++) {
-                  const style = window.getComputedStyle(current);
-                  const rect = current.getBoundingClientRect();
-                  const overlayPosition =
-                    style.position === 'fixed' || style.position === 'absolute';
-                  const reasonableSize =
-                    rect.width <= window.innerWidth * 0.75 &&
-                    rect.height <= window.innerHeight * 0.75;
-
-                  if (overlayPosition && reasonableSize &&
-                      (style.zIndex !== 'auto' || rect.bottom >= window.innerHeight * 0.5)) {
-                    target = current;
-                    break;
-                  }
-                  current = current.parentElement;
-                }
-
-                target.remove();
+                // Remove somente o elemento identificado como anúncio.
+                // Não sobe pela árvore DOM: isso evita apagar cards, listas
+                // ou contêineres legítimos que também contenham imagens.
+                element.remove();
               }
 
               function scanForAds() {
