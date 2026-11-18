@@ -1823,7 +1823,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         if (::siteWeb.isInitialized) siteWeb.onPause()
-        CookieManager.getInstance().flush()
+        persistenceWorker.execute {
+            runCatching { CookieManager.getInstance().flush() }
+                .onFailure { Log.w(TAG, "Falha ao persistir cookies ao pausar em segundo plano", it) }
+        }
         super.onPause()
     }
 
