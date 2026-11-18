@@ -17,6 +17,7 @@ import java.security.SecureRandom
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.ConcurrentHashMap
 import javax.net.ssl.SNIHostName
 import javax.net.ssl.SSLSocket
 import javax.net.ssl.SSLSocketFactory
@@ -44,6 +45,7 @@ internal class InAppCloudflareDnsProxy private constructor() {
     }
 
     private val clients = Executors.newCachedThreadPool()
+    private val dnsCache = ConcurrentHashMap<String, Pair<Long, List<InetAddress>>>()
     private val control = Executors.newSingleThreadExecutor()
     @Volatile private var server: ServerSocket? = null
     @Volatile private var running = false
@@ -219,6 +221,9 @@ internal class InAppCloudflareDnsProxy private constructor() {
         if (host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}"))) {
             return listOf(InetAddress.getByName(host))
         }
+        val key = host.trimEnd('.').lowercase()
+        val now = System.currentTimeMillis()
+        dnsCache[key]?.takeIf { it.first > now }?.let { return it.second }
         val results = ArrayList<InetAddress>()
         for (type in listOf(1, 28)) { // A e AAAA: compatibilidade com CDNs e players IPv6.
             runCatching {
@@ -226,8 +231,10 @@ internal class InAppCloudflareDnsProxy private constructor() {
                 results.addAll(parseAddressRecords(response, type))
             }.onFailure { Log.w(TAG, "Consulta DoH tipo $type falhou para $host", it) }
         }
-        return results.distinctBy { it.hostAddress }
+        val resolved = results.distinctBy { it.hostAddress }
             .ifEmpty { throw IllegalStateException("Cloudflare DoH não retornou A/AAAA para $host") }
+        dnsCache[key] = (now + 60_000L) to resolved
+        return resolved
     }
 
     private fun buildDnsQuery(host: String, type: Int): ByteArray {
