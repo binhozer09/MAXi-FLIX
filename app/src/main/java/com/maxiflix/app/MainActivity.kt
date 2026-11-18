@@ -59,6 +59,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fullscreenContainer: FrameLayout
     private lateinit var siteWeb: WebView
     private lateinit var updateButton: Button
+    private lateinit var exoTestButton: Button
     private lateinit var updateProgress: ProgressBar
     private lateinit var updateStatus: TextView
     private lateinit var backButton: Button
@@ -146,6 +147,10 @@ class MainActivity : AppCompatActivity() {
         fullscreenContainer = findViewById(R.id.fullscreenContainer)
         siteWeb = findViewById(R.id.siteWeb)
         updateButton = findViewById(R.id.updateButton)
+        exoTestButton = findViewById(R.id.exoTestButton)
+        exoTestButton.setOnClickListener {
+            startActivity(Intent(this, ExoTestActivity::class.java))
+        }
         updateProgress = findViewById(R.id.updateProgress)
         updateStatus = findViewById(R.id.updateStatus)
         backButton = findViewById(R.id.backButton)
