@@ -53,10 +53,10 @@
                 android:paddingStart="10dp"
                 android:paddingEnd="10dp"
                 android:backgroundTint="@color/accent"
-                android:text="Logs"
+                android:text="⚙️"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="13sp" />
+                android:textSize="20sp" />
 
         </LinearLayout>
 
