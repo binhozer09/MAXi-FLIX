@@ -244,7 +244,7 @@ internal class InAppCloudflareDnsProxy private constructor() {
             out.write(bytes.size); out.write(bytes)
         }
         out.write(0)
-        out.write(0); out.write(1) // A
+        out.write((type shr 8) and 0xff); out.write(type and 0xff) // A ou AAAA
         out.write(0); out.write(1) // IN
         return out.toByteArray()
     }
