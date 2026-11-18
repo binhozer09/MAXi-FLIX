@@ -218,7 +218,7 @@ class MainActivity : AppCompatActivity() {
         backButton = findViewById(R.id.backButton)
         forwardButton = findViewById(R.id.forwardButton)
         diagnosticButton = findViewById(R.id.diagnosticButton)
-        diagnosticButton.setOnClickListener { showDiagnosticReport() }
+        diagnosticButton.setOnClickListener { showVpnSettings() }
 
         backButton.setOnClickListener {
             if (siteWeb.canGoBack()) siteWeb.goBack()
@@ -245,7 +245,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         registerDnsReceiver()
-        startDnsProtection()
+        val vpnEnabled = getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
+            .getBoolean("vpn_enabled", true)
+        if (vpnEnabled) startDnsProtection() else loadSiteAndCheckUpdates()
     }
 
     private fun registerDnsReceiver() {
@@ -263,28 +265,39 @@ class MainActivity : AppCompatActivity() {
         dnsReceiverRegistered = true
     }
 
+    private fun showVpnSettings() {
+        val preferences = getSharedPreferences("maxiflix_local_data", MODE_PRIVATE)
+        val enabled = preferences.getBoolean("vpn_enabled", true)
+        val status = if (enabled) "VPN ativada" else "VPN desativada"
+        AlertDialog.Builder(this)
+            .setTitle("Configurações")
+            .setMessage("$status\\n\\nA VPN DNS protege somente o tráfego DNS do MAXi-FLIX.")
+            .setPositiveButton(if (enabled) "Desativar VPN" else "Ativar VPN") { _, _ ->
+                if (enabled) {
+                    preferences.edit().putBoolean("vpn_enabled", false).apply()
+                    stopService(Intent(this, CloudflareDnsVpnService::class.java))
+                    Toast.makeText(this, "VPN desativada.", Toast.LENGTH_SHORT).show()
+                } else {
+                    val permissionIntent = VpnService.prepare(this)
+                    if (permissionIntent == null) {
+                        preferences.edit().putBoolean("vpn_enabled", true).apply()
+                        startDnsService()
+                    } else {
+                        startActivityForResult(permissionIntent, REQUEST_DNS_PERMISSION)
+                    }
+                }
+            }
+            .setNegativeButton("Fechar", null)
+            .show()
+    }
+
     private fun startDnsProtection() {
         val permissionIntent = VpnService.prepare(this)
         if (permissionIntent == null) {
             startDnsService()
             return
         }
-
-        AlertDialog.Builder(this)
-            .setTitle("DNS automático")
-            .setMessage(
-                "Para abrir o site sem alterar o DNS do Wi-Fi, o MAXi-FLIX usará " +
-                    "a Cloudflare 1.1.1.1 somente neste aplicativo. O Android vai " +
-                    "pedir autorização para criar uma conexão VPN local."
-            )
-            .setNegativeButton("Continuar sem DNS") { _, _ ->
-                loadSiteAndCheckUpdates()
-            }
-            .setPositiveButton("Ativar DNS") { _, _ ->
-                startActivityForResult(permissionIntent, REQUEST_DNS_PERMISSION)
-            }
-            .setCancelable(false)
-            .show()
+        startActivityForResult(permissionIntent, REQUEST_DNS_PERMISSION)
     }
 
     private fun startDnsService() {
@@ -317,6 +330,8 @@ class MainActivity : AppCompatActivity() {
         if (requestCode != REQUEST_DNS_PERMISSION) return
 
         if (resultCode == RESULT_OK) {
+            getSharedPreferences("maxiflix_local_data", MODE_PRIVATE).edit()
+                .putBoolean("vpn_enabled", true).apply()
             startDnsService()
         } else {
             Toast.makeText(
@@ -1782,6 +1797,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing) {
+            stopService(Intent(this, CloudflareDnsVpnService::class.java))
+        }
         if (customView != null) hideFullscreenView()
         if (dnsReceiverRegistered) {
             runCatching { unregisterReceiver(dnsReceiver) }
