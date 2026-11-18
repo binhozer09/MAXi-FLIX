@@ -395,6 +395,7 @@ class MainActivity : AppCompatActivity() {
                 CookieManager.getInstance().flush()
                 hideSiteBranding()
                 applyFullscreenVideoSizing()
+                installVideoSeekControls()
                 hide1WinAds()
                 updateNavigationButtons()
             }
@@ -571,6 +572,127 @@ class MainActivity : AppCompatActivity() {
                     'maxiflix-video-fullscreen', !!document.webkitFullscreenElement
                   );
                 });
+              }
+            })();
+        """.trimIndent()
+        siteWeb.evaluateJavascript(script, null)
+    }
+
+    /**
+     * Adiciona controles de ±10 segundos somente quando existe um elemento HTML5 <video>
+     * acessível. Não substitui o player, não altera autoplay e não tenta atravessar iframes
+     * de outra origem.
+     */
+    private fun installVideoSeekControls() {
+        val script = """
+            (function() {
+              try {
+                function installDocument(doc) {
+                  if (!doc || !doc.documentElement) return;
+                  const win = doc.defaultView;
+                  if (!win) return;
+
+                  function attachControls() {
+                    doc.querySelectorAll('video').forEach(function(video) {
+                      if (video.dataset.maxiflixSeekControls === '1') return;
+                      const host = video.parentElement;
+                      if (!host) return;
+
+                      video.dataset.maxiflixSeekControls = '1';
+                      if (win.getComputedStyle(host).position === 'static') {
+                        host.style.position = 'relative';
+                      }
+
+                      const controls = doc.createElement('div');
+                      controls.setAttribute('data-maxiflix-seek-controls', '1');
+                      controls.style.cssText =
+                        'position:absolute;left:50%;bottom:12px;transform:translateX(-50%);' +
+                        'z-index:2147483647;display:flex;gap:10px;align-items:center;' +
+                        'pointer-events:none;max-width:95%;';
+
+                      function makeButton(label, accessibleName, delta) {
+                        const button = doc.createElement('button');
+                        button.type = 'button';
+                        button.textContent = label;
+                        button.setAttribute('aria-label', accessibleName);
+                        button.style.cssText =
+                          'pointer-events:auto;touch-action:manipulation;' +
+                          'background:rgba(0,0,0,.82);color:#fff;' +
+                          'border:1px solid rgba(255,255,255,.72);border-radius:22px;' +
+                          'padding:9px 13px;min-width:76px;min-height:40px;' +
+                          'font:600 14px Arial,sans-serif;line-height:20px;' +
+                          'box-shadow:0 2px 8px rgba(0,0,0,.35);';
+                        button.addEventListener('click', function(event) {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          try {
+                            let target = Number(video.currentTime || 0) + delta;
+                            const duration = Number(video.duration);
+                            if (Number.isFinite(duration)) {
+                              target = Math.min(Math.max(0, target), duration);
+                            } else if (video.seekable && video.seekable.length > 0) {
+                              const first = video.seekable.start(0);
+                              const last = video.seekable.end(video.seekable.length - 1);
+                              target = Math.min(Math.max(first, target), last);
+                            } else {
+                              target = Math.max(0, target);
+                            }
+                            video.currentTime = target;
+                            win.console.log('MAXIFLIX_SEEK ' +
+                              JSON.stringify({seconds: delta, target: Math.round(target)}));
+                          } catch (error) {
+                            win.console.log('MAXIFLIX_SEEK_ERROR ' +
+                              String(error && error.message || error).slice(0, 180));
+                          }
+                        });
+                        return button;
+                      }
+
+                      controls.appendChild(makeButton('↶ 10s', 'Voltar 10 segundos', -10));
+                      controls.appendChild(makeButton('10s ↷', 'Avançar 10 segundos', 10));
+                      controls.__maxiflixVideo = video;
+                      host.appendChild(controls);
+                      win.console.log('MAXIFLIX_SEEK_CONTROLS_READY');
+                    });
+
+                    doc.querySelectorAll('[data-maxiflix-seek-controls="1"]').forEach(function(node) {
+                      if (!node.__maxiflixVideo || !node.__maxiflixVideo.isConnected) {
+                        node.remove();
+                      }
+                    });
+
+                    doc.querySelectorAll('iframe').forEach(function(frame) {
+                      if (!frame.__maxiflixSeekLoadHook) {
+                        frame.__maxiflixSeekLoadHook = true;
+                        frame.addEventListener('load', function() {
+                          try { installDocument(frame.contentDocument); } catch (_) {}
+                        });
+                      }
+                      try {
+                        if (frame.contentDocument) installDocument(frame.contentDocument);
+                      } catch (_) {
+                        if (!frame.__maxiflixSeekBlockedLogged) {
+                          frame.__maxiflixSeekBlockedLogged = true;
+                          win.console.log('MAXIFLIX_SEEK_IFRAME_CROSS_ORIGIN');
+                        }
+                      }
+                    });
+                  }
+
+                  if (!doc.__maxiflixSeekObserver) {
+                    const observer = new win.MutationObserver(function() {
+                      attachControls();
+                    });
+                    observer.observe(doc.documentElement, {childList:true,subtree:true});
+                    doc.__maxiflixSeekObserver = observer;
+                  }
+                  attachControls();
+                }
+
+                installDocument(document);
+              } catch (error) {
+                console.log('MAXIFLIX_SEEK_INSTALL_ERROR ' +
+                  String(error && error.message || error).slice(0, 180));
               }
             })();
         """.trimIndent()
@@ -829,6 +951,9 @@ class MainActivity : AppCompatActivity() {
                     const positioned = style.position === 'fixed' ||
                       style.position === 'absolute' || style.position === 'sticky';
                     const elevated = Number.parseInt(style.zIndex || '0', 10) > 0;
+                    // Mantém a métrica no diagnóstico, sem remover players só pelo tamanho.
+                    const coversScreen = area > viewport * 0.30 &&
+                      (style.position === 'fixed' || style.position === 'absolute');
                     if (!positioned || width < innerWidth * 0.12 ||
                         height < 28 || height > innerHeight * 0.70) return;
                     const nearEdge = rect.bottom >= innerHeight * 0.50 ||
