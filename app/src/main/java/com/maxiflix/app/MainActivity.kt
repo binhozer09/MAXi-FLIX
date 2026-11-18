@@ -84,6 +84,7 @@ class MainActivity : AppCompatActivity() {
     private var siteLoadStarted = false
     private var cacheRetryInProgress = false
     private var restoredWebViewState = false
+    private var pendingWebViewState: Bundle? = null
     private var inAppDnsReady = false
 
     private val dnsReceiver = object : BroadcastReceiver() {
@@ -234,9 +235,8 @@ class MainActivity : AppCompatActivity() {
 
         cleanupInstalledUpdate()
         configureWebView()
-        restoredWebViewState = savedInstanceState?.let { state ->
-            siteWeb.restoreState(state) != null
-        } ?: false
+        // O estado do WebView será restaurado somente depois que o proxy DoH estiver aplicado.
+        pendingWebViewState = savedInstanceState
         getSharedPreferences("maxiflix_local_data", MODE_PRIVATE).edit()
             .putLong("last_opened_at", System.currentTimeMillis()).apply()
 
@@ -259,6 +259,10 @@ class MainActivity : AppCompatActivity() {
                 inAppDnsReady = ready
                 if (ready) {
                     Log.i(TAG, "Cloudflare DoH interno ativo para o WebView.")
+                    restoredWebViewState = pendingWebViewState?.let { state ->
+                        siteWeb.restoreState(state) != null
+                    } ?: false
+                    pendingWebViewState = null
                     loadSiteAndCheckUpdates()
                 } else {
                     Log.e(TAG, "DNS interno indisponível: ${error ?: "erro desconhecido"}")
