@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.11"
+        default: "maxiflix-v1.8.13"
         type: string
 
 permissions:
@@ -126,7 +126,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "Controles de avanço e retorno de 10 segundos para vídeos HTML5, correção do diagnóstico de overlays e preservação do player e do bloqueio de anúncios."
+              "releaseNotes": "Botão de configurações com controles para ativar e desativar a VPN DNS; desligamento da VPN ao fechar o aplicativo e respeito à preferência escolhida."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -137,7 +137,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.11' }}
+          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.13' }}
           tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.11' }}
           target_commitish: release/1.7.0
           generate_release_notes: true
