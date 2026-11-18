@@ -26,6 +26,7 @@ class CloudflareDnsVpnService : VpnService() {
     companion object {
         const val ACTION_DNS_READY = "com.maxiflix.app.ACTION_DNS_READY"
         const val ACTION_DNS_FAILED = "com.maxiflix.app.ACTION_DNS_FAILED"
+        const val ACTION_STOP_VPN = "com.maxiflix.app.ACTION_STOP_VPN"
 
         private const val CHANNEL_ID = "maxiflix_cloudflare_dns"
         private const val NOTIFICATION_ID = 1101
@@ -65,6 +66,11 @@ class CloudflareDnsVpnService : VpnService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_STOP_VPN) {
+            stopDnsTunnel()
+            stopSelfResult(startId)
+            return START_NOT_STICKY
+        }
         if (vpnInterface == null) establishDnsTunnel()
         if (vpnInterface != null) {
             // Establish the VPN first so Android recognizes this as an active VPN app
@@ -367,22 +373,30 @@ class CloudflareDnsVpnService : VpnService() {
             .build()
     }
 
+    private fun stopDnsTunnel() {
+        // Closing the descriptor unregisters the VPN tunnel from Android.
+        running.set(false)
+        packetThread?.interrupt()
+        runCatching { vpnInterface?.close() }
+        vpnInterface = null
+        packetThread = null
+        stopForeground(STOP_FOREGROUND_REMOVE)
+    }
+
     override fun onRevoke() {
+        stopDnsTunnel()
         stopSelf()
         super.onRevoke()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
+        stopDnsTunnel()
         stopSelf()
         super.onTaskRemoved(rootIntent)
     }
 
     override fun onDestroy() {
-        running.set(false)
-        packetThread?.interrupt()
-        runCatching { vpnInterface?.close() }
-        vpnInterface = null
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopDnsTunnel()
         super.onDestroy()
     }
 }
