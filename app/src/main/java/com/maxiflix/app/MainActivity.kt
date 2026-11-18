@@ -274,13 +274,19 @@ class MainActivity : AppCompatActivity() {
             .setMessage("$status\\n\\nA VPN DNS protege somente o tráfego DNS do MAXi-FLIX.")
             .setPositiveButton(if (enabled) "Desativar VPN" else "Ativar VPN") { _, _ ->
                 if (enabled) {
-                    preferences.edit().putBoolean("vpn_enabled", false).apply()
-                    stopService(Intent(this, CloudflareDnsVpnService::class.java))
-                    Toast.makeText(this, "VPN desativada.", Toast.LENGTH_SHORT).show()
+                    preferences.edit().putBoolean("vpn_enabled", false).commit()
+                    val stopIntent = Intent(this, CloudflareDnsVpnService::class.java)
+                        .setAction(CloudflareDnsVpnService.ACTION_STOP_VPN)
+                    runCatching { startService(stopIntent) }
+                        .onFailure {
+                            Log.e(TAG, "Falha ao solicitar encerramento da VPN", it)
+                            stopService(Intent(this, CloudflareDnsVpnService::class.java))
+                        }
+                    Toast.makeText(this, "Solicitando encerramento da VPN...", Toast.LENGTH_SHORT).show()
                 } else {
                     val permissionIntent = VpnService.prepare(this)
                     if (permissionIntent == null) {
-                        preferences.edit().putBoolean("vpn_enabled", true).apply()
+                        preferences.edit().putBoolean("vpn_enabled", true).commit()
                         startDnsService()
                     } else {
                         startActivityForResult(permissionIntent, REQUEST_DNS_PERMISSION)
