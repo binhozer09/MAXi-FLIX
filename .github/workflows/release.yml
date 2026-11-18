@@ -3,7 +3,7 @@ name: Publish MAXi-FLIX update
 on:
   push:
     branches:
-      - "release/1.7.0"
+      - "fix/audit-1.8.10"
     tags:
       - "maxiflix-v*"
   workflow_dispatch:
@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.10"
+        default: "maxiflix-v1.8.11"
         type: string
 
 permissions:
@@ -137,9 +137,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.10' }}
+          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.11' }}
           tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.10' }}
-          target_commitish: release/1.7.0
+          target_commitish: fix/audit-1.8.10
           generate_release_notes: true
           files: |
             release/MAXi-FLIX.apk
