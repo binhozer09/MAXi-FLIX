@@ -71,7 +71,8 @@ class CloudflareDnsVpnService : VpnService() {
             // when validating the system-exempted foreground-service type.
             startForeground(NOTIFICATION_ID, buildNotification())
         }
-        return START_STICKY
+        // Do not let Android restart the VPN after the user closes the app.
+        return START_NOT_STICKY
     }
 
     private fun establishDnsTunnel() {
