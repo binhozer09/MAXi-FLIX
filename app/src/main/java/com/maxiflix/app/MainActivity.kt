@@ -70,7 +70,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var updateStatus: TextView
     private lateinit var backButton: Button
     private lateinit var forwardButton: Button
-    private lateinit var diagnosticButton: Button
     private val diagnosticLogs = ArrayDeque<String>()
     private val diagnosticLock = Any()
 
@@ -219,11 +218,6 @@ class MainActivity : AppCompatActivity() {
         updateStatus = findViewById(R.id.updateStatus)
         backButton = findViewById(R.id.backButton)
         forwardButton = findViewById(R.id.forwardButton)
-        diagnosticButton = findViewById(R.id.diagnosticButton)
-        diagnosticButton.setOnClickListener {
-            val status = if (inAppDnsReady) "DNS Cloudflare protegido dentro do MAXi-FLIX (sem VPN)." else "DNS interno ainda não está ativo."
-            Toast.makeText(this, status, Toast.LENGTH_LONG).show()
-        }
 
         backButton.setOnClickListener {
             if (siteWeb.canGoBack()) siteWeb.goBack()

@@ -319,32 +319,105 @@ internal class InAppCloudflareDnsProxy private constructor() {
 
     private fun parseAddressRecords(packet: ByteArray, requestedType: Int): List<InetAddress> {
         require(packet.size >= 12) { "Pacote DNS incompleto" }
-        val buffer = ByteBuffer.wrap(packet).order(ByteOrder.BIG_ENDIAN)
-        val flags = buffer.getShort(2).toInt() and 0xffff
-        check(flags and 0x8000 != 0 && flags and 0x000f == 0) { "Falha na resposta DNS Cloudflare" }
-        val questions = buffer.getShort(4).toInt() and 0xffff
-        val answers = buffer.getShort(6).toInt() and 0xffff
-        var offset = 12
-        repeat(questions) {
-            offset = skipDnsName(packet, offset) + 4
-            require(offset <= packet.size)
+        val flags = readU16(packet, 2)
+        check(flags and 0x8000 != 0 && flags and 0x000f == 0) {
+            "Falha na resposta DNS Cloudflare (RCODE=${flags and 0x000f})"
         }
-        val result = ArrayList<InetAddress>()
-        repeat(answers) {
-            offset = skipDnsName(packet, offset)
-            require(offset + 10 <= packet.size)
+
+        val questionCount = readU16(packet, 4)
+        val answerCount = readU16(packet, 6)
+        val authorityCount = readU16(packet, 8)
+        val additionalCount = readU16(packet, 10)
+        var offset = 12
+        var queriedName: String? = null
+
+        repeat(questionCount) { index ->
+            val decoded = decodeDnsName(packet, offset)
+            if (index == 0) queriedName = decoded.first
+            offset = decoded.second + 4
+            require(offset <= packet.size) { "Pergunta DNS truncada" }
+        }
+
+        val addressesByName = LinkedHashMap<String, MutableList<InetAddress>>()
+        val aliases = LinkedHashMap<String, String>()
+        val recordCount = answerCount + authorityCount + additionalCount
+
+        repeat(recordCount) {
+            val ownerResult = decodeDnsName(packet, offset)
+            val owner = ownerResult.first
+            offset = ownerResult.second
+            require(offset + 10 <= packet.size) { "Registro DNS truncado" }
+
             val type = readU16(packet, offset)
-            val clazz = readU16(packet, offset + 2)
+            val recordClass = readU16(packet, offset + 2)
             val dataLength = readU16(packet, offset + 8)
             offset += 10
-            require(offset + dataLength <= packet.size)
-            if (clazz == 1 && type == requestedType &&
-                ((type == 1 && dataLength == 4) || (type == 28 && dataLength == 16))) {
-                result.add(InetAddress.getByAddress(packet.copyOfRange(offset, offset + dataLength)))
+            require(offset + dataLength <= packet.size) { "Dados DNS truncados" }
+
+            if (recordClass == 1) {
+                when {
+                    type == 5 -> {
+                        val target = decodeDnsName(packet, offset).first
+                        aliases[owner] = target
+                    }
+                    type == requestedType &&
+                        ((type == 1 && dataLength == 4) || (type == 28 && dataLength == 16)) -> {
+                        val address = InetAddress.getByAddress(packet.copyOfRange(offset, offset + dataLength))
+                        addressesByName.getOrPut(owner) { ArrayList() }.add(address)
+                    }
+                }
             }
             offset += dataLength
         }
-        return result
+
+        val result = LinkedHashSet<InetAddress>()
+        var current = queriedName
+        val visited = HashSet<String>()
+        while (current != null && visited.add(current)) {
+            addressesByName[current]?.let { result.addAll(it) }
+            current = aliases[current]
+        }
+
+        // Alguns resolvedores/CDNs incluem o endereço apenas na seção adicional.
+        // Se não houver cadeia explícita, aproveita os registros de endereço da resposta.
+        if (result.isEmpty()) addressesByName.values.forEach { result.addAll(it) }
+        return result.toList()
+    }
+
+    private fun decodeDnsName(packet: ByteArray, start: Int): Pair<String, Int> {
+        require(start in packet.indices) { "Nome DNS fora do pacote" }
+        val labels = ArrayList<String>()
+        var cursor = start
+        var nextOffset = -1
+        var jumps = 0
+
+        while (true) {
+            require(cursor in packet.indices) { "Nome DNS truncado" }
+            val length = packet[cursor].toInt() and 0xff
+            when {
+                length == 0 -> {
+                    if (nextOffset < 0) nextOffset = cursor + 1
+                    break
+                }
+                length and 0xc0 == 0xc0 -> {
+                    require(cursor + 1 < packet.size) { "Ponteiro DNS truncado" }
+                    val pointer = ((length and 0x3f) shl 8) or (packet[cursor + 1].toInt() and 0xff)
+                    require(pointer < packet.size) { "Ponteiro DNS inválido" }
+                    if (nextOffset < 0) nextOffset = cursor + 2
+                    cursor = pointer
+                    jumps++
+                    require(jumps <= 16) { "Ciclo em ponteiro DNS" }
+                }
+                else -> {
+                    require(length <= 63 && cursor + 1 + length <= packet.size) {
+                        "Rótulo DNS inválido"
+                    }
+                    labels.add(String(packet, cursor + 1, length, Charsets.US_ASCII).lowercase())
+                    cursor += length + 1
+                }
+            }
+        }
+        return labels.joinToString(".") to nextOffset
     }
 
     private fun readU16(bytes: ByteArray, offset: Int): Int =
