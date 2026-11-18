@@ -2,7 +2,7 @@ package com.maxiflix.app
 
 import android.content.Context
 import android.util.Log
-import android.webkit.WebViewFeature
+import androidx.webkit.WebViewFeature
 import androidx.webkit.ProxyConfig
 import androidx.webkit.ProxyController
 import java.io.ByteArrayOutputStream
