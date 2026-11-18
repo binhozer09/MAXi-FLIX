@@ -107,29 +107,33 @@ internal class InAppCloudflareDnsProxy private constructor() {
                 incoming.soTimeout = 15000
                 val header = readHeader(incoming.getInputStream())
                 val firstLine = header.substringBefore("\r\n")
-                if (!firstLine.startsWith("CONNECT ", ignoreCase = true)) {
-                    incoming.getOutputStream().apply {
-                        write("HTTP/1.1 501 HTTPS proxy only\r\nConnection: close\r\nContent-Length: 0\r\n\r\n".toByteArray())
-                        flush()
-                    }
+                val output = incoming.getOutputStream()
+
+                if (firstLine.startsWith("CONNECT ", ignoreCase = true)) {
+                    val authority = firstLine.substringAfter("CONNECT ").substringBefore(' ').trim()
+                    val host = authority.substringBeforeLast(':', authority).trim('[', ']')
+                    val port = authority.substringAfterLast(':', "443").toIntOrNull() ?: 443
+                    require(host.isNotBlank() && port in 1..65535) { "Destino CONNECT inválido" }
+                    connectAndTunnel(incoming, host, port, null)
                     return
                 }
-                val authority = firstLine.substringAfter("CONNECT ").substringBefore(' ').trim()
-                val host = authority.substringBeforeLast(':', authority).trim('[', ']')
-                val port = authority.substringAfterLast(':', "443").toIntOrNull() ?: 443
-                require(host.isNotBlank() && port in 1..65535) { "Destino CONNECT inválido" }
 
-                val address = resolveIpv4(host)
-                Socket().use { upstream ->
-                    upstream.connect(InetSocketAddress(address, port), 12000)
-                    upstream.soTimeout = 0
-                    incoming.soTimeout = 0
-                    incoming.getOutputStream().apply {
-                        write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
-                        flush()
-                    }
-                    tunnel(incoming, upstream)
+                // WebView pode enviar HTTP em formato absolute-form. Não rejeitar esses pedidos:
+                // reescreve para origin-form e encaminha pelo mesmo resolvedor DoH.
+                val parts = firstLine.split(' ', limit = 3)
+                require(parts.size == 3) { "Linha HTTP inválida" }
+                val uri = java.net.URI(parts[1])
+                require(uri.scheme.equals("http", true) && !uri.host.isNullOrBlank()) {
+                    "Somente HTTP absoluto ou HTTPS CONNECT é aceito"
                 }
+                val port = if (uri.port > 0) uri.port else 80
+                val path = (uri.rawPath.takeUnless { it.isNullOrEmpty() } ?: "/") +
+                    (uri.rawQuery?.let { "?$it" } ?: "")
+                val rewritten = header.replaceFirst(
+                    firstLine,
+                    "${parts[0]} $path ${parts[2]}"
+                )
+                connectAndTunnel(incoming, uri.host, port, rewritten.toByteArray(Charsets.ISO_8859_1))
             } catch (error: Exception) {
                 Log.w(TAG, "Conexão proxy encerrada: ${error.message}")
                 runCatching {
@@ -139,6 +143,39 @@ internal class InAppCloudflareDnsProxy private constructor() {
                 }
             }
         }
+    }
+
+    private fun connectAndTunnel(
+        client: Socket,
+        host: String,
+        port: Int,
+        initialRequest: ByteArray?
+    ) {
+        val addresses = resolveAddresses(host)
+        var lastError: Exception? = null
+        for (address in addresses) {
+            try {
+                Socket().use { upstream ->
+                    upstream.connect(InetSocketAddress(address, port), 12000)
+                    upstream.soTimeout = 0
+                    client.soTimeout = 0
+                    val output = client.getOutputStream()
+                    if (initialRequest == null) {
+                        output.write("HTTP/1.1 200 Connection Established\r\n\r\n".toByteArray())
+                    } else {
+                        upstream.getOutputStream().write(initialRequest)
+                    }
+                    output.flush()
+                    if (initialRequest != null) upstream.getOutputStream().flush()
+                    tunnel(client, upstream)
+                }
+                return
+            } catch (error: Exception) {
+                lastError = error
+                Log.w(TAG, "Falha conectando a $host via ${address.hostAddress}: ${error.message}")
+            }
+        }
+        throw lastError ?: IllegalStateException("Nenhum endereço DNS válido para $host")
     }
 
     private fun readHeader(input: InputStream): String {
@@ -177,17 +214,23 @@ internal class InAppCloudflareDnsProxy private constructor() {
         finished.await(30, TimeUnit.MINUTES)
     }
 
-    private fun resolveIpv4(host: String): InetAddress {
-        // IP literals do not require DNS. Hostnames are resolved only by Cloudflare DoH.
+    private fun resolveAddresses(host: String): List<InetAddress> {
+        // IP literals não precisam de resolução. Para nomes, somente Cloudflare DoH.
         if (host.matches(Regex("\\d{1,3}(\\.\\d{1,3}){3}"))) {
-            return InetAddress.getByName(host)
+            return listOf(InetAddress.getByName(host))
         }
-        val query = buildDnsQuery(host)
-        val response = dohExchange(query)
-        return parseARecord(response)
+        val results = ArrayList<InetAddress>()
+        for (type in listOf(1, 28)) { // A e AAAA: compatibilidade com CDNs e players IPv6.
+            runCatching {
+                val response = dohExchange(buildDnsQuery(host, type))
+                results.addAll(parseAddressRecords(response, type))
+            }.onFailure { Log.w(TAG, "Consulta DoH tipo $type falhou para $host", it) }
+        }
+        return results.distinctBy { it.hostAddress }
+            .ifEmpty { throw IllegalStateException("Cloudflare DoH não retornou A/AAAA para $host") }
     }
 
-    private fun buildDnsQuery(host: String): ByteArray {
+    private fun buildDnsQuery(host: String, type: Int): ByteArray {
         val out = ByteArrayOutputStream()
         val id = random.nextInt(65536)
         out.write((id shr 8) and 0xff)
@@ -267,7 +310,7 @@ internal class InAppCloudflareDnsProxy private constructor() {
         throw IllegalStateException("Cabeçalho DoH inválido")
     }
 
-    private fun parseARecord(packet: ByteArray): InetAddress {
+    private fun parseAddressRecords(packet: ByteArray, requestedType: Int): List<InetAddress> {
         require(packet.size >= 12) { "Pacote DNS incompleto" }
         val buffer = ByteBuffer.wrap(packet).order(ByteOrder.BIG_ENDIAN)
         val flags = buffer.getShort(2).toInt() and 0xffff
@@ -279,6 +322,7 @@ internal class InAppCloudflareDnsProxy private constructor() {
             offset = skipDnsName(packet, offset) + 4
             require(offset <= packet.size)
         }
+        val result = ArrayList<InetAddress>()
         repeat(answers) {
             offset = skipDnsName(packet, offset)
             require(offset + 10 <= packet.size)
@@ -287,12 +331,13 @@ internal class InAppCloudflareDnsProxy private constructor() {
             val dataLength = readU16(packet, offset + 8)
             offset += 10
             require(offset + dataLength <= packet.size)
-            if (type == 1 && clazz == 1 && dataLength == 4) {
-                return InetAddress.getByAddress(packet.copyOfRange(offset, offset + 4))
+            if (clazz == 1 && type == requestedType &&
+                ((type == 1 && dataLength == 4) || (type == 28 && dataLength == 16))) {
+                result.add(InetAddress.getByAddress(packet.copyOfRange(offset, offset + dataLength)))
             }
             offset += dataLength
         }
-        throw IllegalStateException("Cloudflare não retornou endereço IPv4 para o host")
+        return result
     }
 
     private fun readU16(bytes: ByteArray, offset: Int): Int =
