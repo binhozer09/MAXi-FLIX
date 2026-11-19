@@ -957,7 +957,11 @@ class MainActivity : AppCompatActivity() {
                         brandElement.parentElement.tagName === 'A') {
                       brandElement = brandElement.parentElement;
                     }
-                    if (button.parentElement !== brandElement.parentElement) {
+                    // Se o botão já foi colocado no cabeçalho como fallback,
+                    // ainda assim substitui o nome original. Antes, comparar apenas
+                    // os pais deixava a marca intacta quando ambos eram irmãos.
+                    if (brandElement !== button && !brandElement.contains(button)) {
+                      button.remove();
                       brandElement.replaceWith(button);
                     }
                     return;
