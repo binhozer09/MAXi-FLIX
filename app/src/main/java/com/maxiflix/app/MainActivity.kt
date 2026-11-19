@@ -928,36 +928,51 @@ class MainActivity : AppCompatActivity() {
 
               function replaceBranding() {
                 try {
-                  if (document.getElementById('maxiflix-continue-button')) return;
-                  let anchor = null;
-                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label],body *').forEach(function(el) {
-                    if (anchor || el.id === 'maxiflix-continue-button') return;
+                  if (!document.body) return;
+                  let button = document.getElementById('maxiflix-continue-button');
+                  if (!button) button = makeButton();
+                  if (!button) return;
+
+                  // Procura o menor elemento que contém o nome/logo da marca.
+                  let brandElement = null;
+                  const candidates = document.querySelectorAll('body *');
+                  for (let i = 0; i < candidates.length; i++) {
+                    const el = candidates[i];
+                    if (el.id === 'maxiflix-continue-button' || el.closest('#maxiflix-continue-button')) continue;
                     const label = [
                       el.getAttribute && el.getAttribute('alt'),
                       el.getAttribute && el.getAttribute('title'),
                       el.getAttribute && el.getAttribute('aria-label'),
-                      el.children && el.children.length === 0 ? el.textContent : ''
-                    ].filter(Boolean).join(' ');
-                    if (brandPattern.test(label)) {
-                      anchor = el;
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') anchor = el.parentElement;
+                      el.children.length === 0 ? el.textContent : ''
+                    ].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+                    if (label && brandPattern.test(label)) {
+                      brandElement = el;
+                      break;
                     }
-                  });
-                  const button = makeButton();
-                  if (!button) return;
-                  if (anchor) {
-                    anchor.replaceWith(button);
+                  }
+
+                  if (brandElement) {
+                    // Substitui exatamente o elemento identificado, no mesmo ponto do cabeçalho.
+                    if (brandElement.tagName === 'IMG' && brandElement.parentElement &&
+                        brandElement.parentElement.tagName === 'A') {
+                      brandElement = brandElement.parentElement;
+                    }
+                    if (button.parentElement !== brandElement.parentElement) {
+                      brandElement.replaceWith(button);
+                    }
                     return;
                   }
-                  // Fallback: mostra o botão mesmo quando o site muda o texto/logo do cabeçalho.
-                  const host = document.querySelector('header, nav, [class*="header"], [id*="header"], main') || document.body;
-                  if (host) {
-                    button.style.margin = '10px auto';
-                    button.style.position = 'relative';
-                    button.style.zIndex = '2147483000';
+
+                  // Se o site não expuser o nome em texto/alt, fixa o botão no início
+                  // do cabeçalho visível em vez de deixá-lo ausente.
+                  const host = document.querySelector('header, nav, [role="banner"], [class*="header"], [id*="header"]') || document.body;
+                  if (button.parentElement !== host || host.firstElementChild !== button) {
+                    button.style.cssText += 'display:flex!important;visibility:visible!important;opacity:1!important;position:relative!important;z-index:2147483647!important;margin:8px auto!important;';
                     host.insertBefore(button, host.firstChild);
                   }
-                } catch (e) {}
+                } catch (e) {
+                  console.log('MAXIFLIX_HISTORY_BUTTON_ERROR ' + String(e && e.message || e));
+                }
               }
 
               function start() {
