@@ -765,9 +765,10 @@ class MainActivity : AppCompatActivity() {
               function readHistory() {
                 try {
                   const value = JSON.parse(localStorage.getItem(historyKey) || '[]');
-                  // Mantém somente registros criados a partir de um elemento de vídeo real.
+                  // Aceita vídeos reproduzidos e filmes selecionados diretamente no catálogo.
                   return Array.isArray(value) ? value.filter(function(entry) {
-                    return entry && entry.type === 'video' && typeof entry.url === 'string';
+                    return entry && (entry.type === 'video' || entry.type === 'selection') &&
+                      typeof entry.url === 'string';
                   }) : [];
                 } catch (e) { return []; }
               }
@@ -775,7 +776,8 @@ class MainActivity : AppCompatActivity() {
               function saveHistory(item) {
                 try {
                   const list = readHistory().filter(function(entry) {
-                    return (entry.videoUrl || entry.url) !== (item.videoUrl || item.url);
+                    return entry.url !== item.url &&
+                      (!item.videoUrl || entry.videoUrl !== item.videoUrl);
                   });
                   list.unshift(item);
                   localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 30)));
@@ -806,11 +808,15 @@ class MainActivity : AppCompatActivity() {
                       !Number.isFinite(video.duration) || video.duration <= 0 ||
                       !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
                   const videoUrl = video.currentSrc || video.src || '';
+                  const selected = readHistory().find(function(entry) {
+                    return entry.type === 'selection' && entry.url === window.location.href;
+                  });
                   const item = {
                     type: 'video',
                     url: window.location.href,
                     videoUrl: videoUrl,
-                    title: currentTitle(),
+                    title: selected && selected.title ? selected.title : currentTitle(),
+                    poster: selected && selected.poster ? selected.poster : '',
                     time: video.currentTime,
                     duration: video.duration,
                     updatedAt: Date.now()
@@ -843,7 +849,7 @@ class MainActivity : AppCompatActivity() {
                 panel.appendChild(heading);
                 if (!list.length) {
                   const empty = document.createElement('div');
-                  empty.textContent = 'Você ainda não assistiu a nenhum filme ou vídeo.';
+                  empty.textContent = 'Você ainda não selecionou nenhum filme ou assistiu a algum vídeo.';
                   empty.style.cssText = 'padding:18px 8px;color:#c7cfdd;text-align:center;font-size:15px;';
                   panel.appendChild(empty);
                 }
@@ -851,14 +857,28 @@ class MainActivity : AppCompatActivity() {
                   const row = document.createElement('button');
                   row.type = 'button';
                   row.style.cssText = 'display:block;width:100%;text-align:left;padding:13px;margin:7px 0;border:1px solid #343b49;border-radius:9px;background:#222a38;color:#fff;font-size:15px;';
+                  row.style.cssText += 'display:flex;align-items:center;gap:12px;';
+                  if (item.poster) {
+                    const poster = document.createElement('img');
+                    poster.src = item.poster;
+                    poster.alt = '';
+                    poster.loading = 'lazy';
+                    poster.style.cssText = 'width:62px;height:88px;object-fit:cover;border-radius:6px;flex:0 0 62px;background:#111;';
+                    row.appendChild(poster);
+                  }
+                  const details = document.createElement('div');
+                  details.style.cssText = 'min-width:0;flex:1;';
                   const name = document.createElement('div');
-                  name.textContent = item.title || 'Conteúdo assistido';
+                  name.textContent = item.title || 'Filme selecionado';
                   name.style.cssText = 'font-weight:700;';
                   const info = document.createElement('small');
-                  info.textContent = item.time > 0 ? 'Continuar de ' + formatTime(item.time) : 'Assistido recentemente';
+                  info.textContent = item.type === 'selection'
+                    ? 'Selecionado no catálogo'
+                    : (item.time > 0 ? 'Continuar de ' + formatTime(item.time) : 'Vídeo reproduzido');
                   info.style.cssText = 'display:block;margin-top:5px;color:#b9c4d5;';
-                  row.appendChild(name);
-                  row.appendChild(info);
+                  details.appendChild(name);
+                  details.appendChild(info);
+                  row.appendChild(details);
                   row.addEventListener('click', function() {
                     try { sessionStorage.setItem(pendingKey, JSON.stringify(item)); } catch (e) {}
                     window.location.href = item.url;
@@ -894,6 +914,52 @@ class MainActivity : AppCompatActivity() {
                     } else if (attempts >= 30) clearInterval(timer);
                   }, 500);
                 } catch (e) {}
+              }
+
+              function installSelectionTracker() {
+                if (window.__maxiflixSelectionTrackerInstalled) return;
+                window.__maxiflixSelectionTrackerInstalled = true;
+                // Só considera cartões com imagem de capa; assim, cliques em servidores,
+                // botões de Play e controles do player não entram no Assistidos.
+                document.addEventListener('click', function(event) {
+                  try {
+                    const target = event.target && event.target.nodeType === 1
+                      ? event.target : event.target && event.target.parentElement;
+                    if (!target || target.closest('#maxiflix-history-overlay,button,video,audio,input,select,textarea')) return;
+                    const link = target.closest('a[href], [role="link"][href], [onclick]');
+                    if (!link) return;
+                    const image = link.querySelector('img');
+                    if (!image) return;
+                    const destination = link.href || link.getAttribute('href') || '';
+                    if (!destination || destination === window.location.href ||
+                        destination.indexOf('javascript:') === 0) return;
+                    const cardText = (link.innerText || link.textContent || '').replace(/\\s+/g, ' ').trim();
+                    const imageTitle = image.getAttribute('alt') || image.getAttribute('title') ||
+                      image.getAttribute('aria-label') || '';
+                    const dataTitle = link.getAttribute('data-title') || link.getAttribute('title') ||
+                      link.getAttribute('aria-label') || '';
+                    let title = (imageTitle || dataTitle || cardText).trim();
+                    title = title.replace(/\\s+/g, ' ').slice(0, 120);
+                    if (!title || /^(assistir|play|dublado|legendado|ver filme)$/i.test(title) ||
+                        /servidor|server|play\\s*\\d+/i.test(title)) return;
+                    const poster = image.currentSrc || image.src ||
+                      image.getAttribute('data-src') || image.getAttribute('data-lazy-src') || '';
+                    if (!poster || poster.indexOf('data:') === 0) return;
+                    saveHistory({
+                      type: 'selection',
+                      url: destination,
+                      videoUrl: '',
+                      title: title,
+                      poster: poster,
+                      time: 0,
+                      duration: 0,
+                      updatedAt: Date.now()
+                    });
+                  } catch (error) {
+                    console.log('MAXIFLIX_SELECTION_TRACK_ERROR ' +
+                      String(error && error.message || error).slice(0, 140));
+                  }
+                }, true);
               }
 
               function installTracker() {
@@ -1040,6 +1106,7 @@ class MainActivity : AppCompatActivity() {
               }
               function start() {
                 replaceBranding();
+                installSelectionTracker();
                 installTracker();
                 updateResumeButton();
                 resumePendingIfPossible();
@@ -1047,6 +1114,7 @@ class MainActivity : AppCompatActivity() {
                   // A busca é restrita ao texto e à imagem da marca; não cria camadas sobre a página.
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
                     hideBranding();
+                    installSelectionTracker();
                     installTracker();
                   });
                   window.__maxiflixResumeObserver.observe(document.documentElement, {
