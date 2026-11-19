@@ -897,25 +897,68 @@ class MainActivity : AppCompatActivity() {
               }
 
               function installTracker() {
-                try {
-                  document.querySelectorAll('video').forEach(function(video) {
-                    if (video.dataset.maxiflixTracked === '1') return;
-                    video.dataset.maxiflixTracked = '1';
-                    let lastSave = 0;
-                    // Um servidor/página não conta: o registro só nasce após o vídeo tocar.
-                    video.addEventListener('playing', function() {
-                      video.dataset.maxiflixPlaybackStarted = '1';
+                // Procura players também em iframes do servidor. Iframes de outra origem
+                // são protegidos pelo navegador e não podem ser inspecionados pelo site pai.
+                function installInDocument(doc, depth) {
+                  if (!doc || depth > 5) return;
+                  try {
+                    doc.querySelectorAll('video').forEach(function(video) {
+                      if (video.dataset.maxiflixTracked === '1') return;
+                      video.dataset.maxiflixTracked = '1';
+                      let lastSave = 0;
+                      function markPlayback() {
+                        video.dataset.maxiflixPlaybackStarted = '1';
+                        saveProgress(video);
+                      }
+                      video.addEventListener('playing', markPlayback);
+                      video.addEventListener('timeupdate', function() {
+                        if (video.paused || video.ended) return;
+                        video.dataset.maxiflixPlaybackStarted = '1';
+                        const now = Date.now();
+                        if (now - lastSave >= 2500) {
+                          lastSave = now;
+                          saveProgress(video);
+                        }
+                      });
+                      video.addEventListener('pause', function() { saveProgress(video); });
+                      video.addEventListener('ended', function() {
+                        saveProgress(video);
+                      });
+                      video.addEventListener('webkitbeginfullscreen', markPlayback);
+                      video.addEventListener('enterpictureinpicture', markPlayback);
+                      if (!video.paused && video.currentTime > 0) markPlayback();
                     });
-                    video.addEventListener('timeupdate', function() {
-                      const now = Date.now();
-                      if (now - lastSave >= 3000) { lastSave = now; saveProgress(video); }
+
+                    // Alguns players montam o vídeo somente depois do segundo toque em Play.
+                    // O observador acompanha a criação tardia do elemento dentro do iframe.
+                    if (!doc.__maxiflixPlaybackObserver && doc.documentElement) {
+                      doc.__maxiflixPlaybackObserver = new MutationObserver(function() {
+                        installInDocument(doc, depth);
+                      });
+                      doc.__maxiflixPlaybackObserver.observe(doc.documentElement, {
+                        childList: true, subtree: true
+                      });
+                    }
+
+                    doc.querySelectorAll('iframe').forEach(function(frame) {
+                      if (!frame.__maxiflixPlaybackLoadHook) {
+                        frame.__maxiflixPlaybackLoadHook = true;
+                        frame.addEventListener('load', function() {
+                          try { installInDocument(frame.contentDocument, depth + 1); } catch (_) {}
+                        });
+                      }
+                      try {
+                        if (frame.contentDocument) installInDocument(frame.contentDocument, depth + 1);
+                      } catch (_) {
+                        // Cross-origin: o Android WebView não permite ler o player por segurança.
+                      }
                     });
-                    video.addEventListener('pause', function() { saveProgress(video); });
-                    video.addEventListener('ended', function() {
-                      try { localStorage.removeItem(resumeKey); } catch (e) {}
-                    });
-                  });
-                } catch (e) {}
+                  } catch (error) {
+                    console.log('MAXIFLIX_PLAYBACK_TRACK_ERROR ' +
+                      String(error && error.message || error).slice(0, 160));
+                  }
+                }
+                installInDocument(document, 0);
               }
 
               // O acesso ao histórico agora é feito pelo botão nativo da barra superior.
