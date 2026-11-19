@@ -605,6 +605,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun hide1WinAds() {
+        // Remove somente o próprio elemento publicitário identificado.
+        // Não percorre nem remove ancestrais: isso poderia apagar uma camada
+        // que cobre toda a página e bloquear os toques nos filmes.
         val script = """
             (function() {
               const selectors = [
@@ -617,62 +620,42 @@ class MainActivity : AppCompatActivity() {
                 '[data-ad*="1win" i]'
               ];
 
-              function removeAd(element) {
+              function removeAdElement(element) {
                 if (!element || element === document.body ||
-                    element === document.documentElement) return;
-
-                let target = element;
-                let current = element;
-
-                for (let i = 0; i < 7 && current && current.parentElement; i++) {
-                  const style = window.getComputedStyle(current);
-                  const rect = current.getBoundingClientRect();
-                  const overlayPosition =
-                    style.position === 'fixed' || style.position === 'absolute';
-                  const reasonableSize =
-                    rect.width <= window.innerWidth * 0.75 &&
-                    rect.height <= window.innerHeight * 0.75;
-
-                  if (overlayPosition && reasonableSize &&
-                      (style.zIndex !== 'auto' || rect.bottom >= window.innerHeight * 0.5)) {
-                    target = current;
-                    break;
-                  }
-                  current = current.parentElement;
-                }
-
-                target.remove();
+                    element === document.documentElement ||
+                    element.id === 'maxiflix-continue-button' ||
+                    element.closest('#maxiflix-continue-button')) return;
+                element.remove();
               }
 
               function scanForAds() {
                 try {
                   selectors.forEach(function(selector) {
-                    document.querySelectorAll(selector).forEach(removeAd);
+                    document.querySelectorAll(selector).forEach(removeAdElement);
                   });
 
                   document.querySelectorAll('body *').forEach(function(element) {
                     if (element.children.length !== 0) return;
                     const label = (element.textContent || '').trim();
                     if (label.length > 0 && label.length <= 40 &&
-                        /^1\s*win$/i.test(label)) {
-                      removeAd(element);
+                        /^1\\s*win$/i.test(label)) {
+                      removeAdElement(element);
                     }
                   });
                 } catch (e) {}
               }
 
-              scanForAds();
-
               if (window.__maxiflix1WinObserver) {
                 window.__maxiflix1WinObserver.disconnect();
               }
+              scanForAds();
               if (document.documentElement) {
-                window.__maxiflix1WinObserver = new MutationObserver(scanForAds);
+                window.__maxiflix1WinObserver = new MutationObserver(function() {
+                  scanForAds();
+                });
                 window.__maxiflix1WinObserver.observe(document.documentElement, {
                   childList: true,
-                  subtree: true,
-                  attributes: true,
-                  attributeFilter: ['src', 'href', 'class', 'id']
+                  subtree: true
                 });
               }
             })();
@@ -1214,3 +1197,4 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
     }
 }
+
