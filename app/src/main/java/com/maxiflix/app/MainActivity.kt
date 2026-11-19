@@ -967,8 +967,9 @@ class MainActivity : AppCompatActivity() {
                 updateResumeButton();
                 resumePendingIfPossible();
                 if (!window.__maxiflixResumeObserver && document.documentElement) {
+                  // Não recriar a tarja dentro do MutationObserver: isso altera o DOM
+                  // observado e cria um ciclo infinito que congela os toques no WebView.
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
-                    replaceBranding();
                     installTracker();
                   });
                   window.__maxiflixResumeObserver.observe(document.documentElement, {
