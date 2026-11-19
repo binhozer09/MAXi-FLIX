@@ -998,9 +998,22 @@ class MainActivity : AppCompatActivity() {
                 }
               }
               start();
+              return JSON.stringify({
+                href: location.href,
+                ready: document.readyState,
+                button: !!document.getElementById('maxiflix-continue-button'),
+                brandMatches: !!Array.from(document.querySelectorAll('body *')).find(function(el) {
+                  const label = [el.getAttribute('alt'), el.getAttribute('title'), el.getAttribute('aria-label'),
+                    el.children.length === 0 ? el.textContent : ''].filter(Boolean).join(' ');
+                  return brandPattern.test(label);
+                }),
+                header: !!document.querySelector('header, nav, [role="banner"], [class*="header"], [id*="header"]')
+              });
             })();
         """.trimIndent()
-        siteWeb.evaluateJavascript(script, null)
+        siteWeb.evaluateJavascript(script) { result ->
+            logDiagnostic("HISTORY_BUTTON", result?.take(900) ?: "sem retorno JS")
+        }
     }
 
     private fun hide1WinAds() {
