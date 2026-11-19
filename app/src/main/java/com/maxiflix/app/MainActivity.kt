@@ -375,48 +375,175 @@ class MainActivity : AppCompatActivity() {
     private fun hideSiteBranding() {
         val script = """
             (function() {
-              const pattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
-              function hideBranding() {
+              const brandPattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
+              const storageKey = 'maxiflix_resume_v1';
+              const pendingKey = 'maxiflix_resume_pending_v1';
+
+              function readSaved() {
+                try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); }
+                catch (e) { return null; }
+              }
+
+              function saveProgress(video) {
                 try {
-                  document.title = 'MAXi-FLIX';
-                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label]').forEach(function(el) {
-                    const label = [
-                      el.getAttribute('alt'),
-                      el.getAttribute('title'),
-                      el.getAttribute('aria-label')
-                    ].filter(Boolean).join(' ');
-                    if (pattern.test(label)) {
-                      el.style.setProperty('display', 'none', 'important');
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
-                        el.parentElement.style.setProperty('display', 'none', 'important');
-                      }
-                    }
+                  if (!video || !Number.isFinite(video.duration) ||
+                      video.duration <= 0 || !Number.isFinite(video.currentTime)) return;
+                  if (video.currentTime < 5 || video.currentTime >= video.duration - 8) return;
+                  const data = {
+                    url: window.location.href,
+                    title: (document.title || 'Vídeo').replace(/\s*[-|]\s*MAXi-FLIX.*/i, '').trim(),
+                    time: video.currentTime,
+                    duration: video.duration,
+                    updatedAt: Date.now()
+                  };
+                  localStorage.setItem(storageKey, JSON.stringify(data));
+                  updateResumeButton();
+                } catch (e) {}
+              }
+
+              function formatTime(seconds) {
+                seconds = Math.max(0, Math.floor(seconds || 0));
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                return h > 0
+                  ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+                  : m + ':' + String(s).padStart(2, '0');
+              }
+
+              function updateResumeButton() {
+                const button = document.getElementById('maxiflix-continue-button');
+                if (!button) return;
+                const saved = readSaved();
+                const title = button.querySelector('.maxiflix-resume-title');
+                const detail = button.querySelector('.maxiflix-resume-detail');
+                if (saved && saved.title) {
+                  title.textContent = saved.title;
+                  detail.textContent = 'Continuar de ' + formatTime(saved.time);
+                  button.disabled = false;
+                } else {
+                  title.textContent = 'CONTINUAR ASSISTINDO';
+                  detail.textContent = 'Seus vídeos recentes aparecerão aqui';
+                  button.disabled = true;
+                }
+              }
+
+              function resumeSaved() {
+                const saved = readSaved();
+                if (!saved || !saved.url) return;
+                if (saved.url !== window.location.href) {
+                  try { sessionStorage.setItem(pendingKey, JSON.stringify(saved)); } catch (e) {}
+                  window.location.href = saved.url;
+                  return;
+                }
+                const pending = saved;
+                let attempts = 0;
+                const seekTimer = setInterval(function() {
+                  attempts++;
+                  const videos = Array.from(document.querySelectorAll('video'));
+                  const video = videos.find(function(item) {
+                    return Number.isFinite(item.duration) && item.duration > 0;
                   });
-                  document.querySelectorAll('body *').forEach(function(el) {
-                    if (el.children.length !== 0) return;
-                    const label = (el.textContent || '').trim();
-                    if (label.length > 0 && label.length < 80 && pattern.test(label)) {
-                      let target = el;
-                      const parent = el.parentElement;
-                      if (parent && parent.children.length <= 2 &&
-                          parent.textContent.trim().length < 100 &&
-                          pattern.test(parent.textContent)) {
-                        target = parent;
+                  if (video) {
+                    try {
+                      video.currentTime = Math.min(pending.time, Math.max(0, video.duration - 2));
+                      video.play().catch(function() {});
+                    } catch (e) {}
+                    clearInterval(seekTimer);
+                  } else if (attempts >= 30) {
+                    clearInterval(seekTimer);
+                  }
+                }, 500);
+              }
+
+              function installTracker() {
+                try {
+                  document.querySelectorAll('video').forEach(function(video) {
+                    if (video.dataset.maxiflixTracked === '1') return;
+                    video.dataset.maxiflixTracked = '1';
+                    let lastSave = 0;
+                    video.addEventListener('timeupdate', function() {
+                      const now = Date.now();
+                      if (now - lastSave >= 3000) {
+                        lastSave = now;
+                        saveProgress(video);
                       }
-                      target.style.setProperty('display', 'none', 'important');
-                    }
+                    });
+                    video.addEventListener('pause', function() { saveProgress(video); });
+                    video.addEventListener('ended', function() {
+                      try { localStorage.removeItem(storageKey); } catch (e) {}
+                      updateResumeButton();
+                    });
                   });
                 } catch (e) {}
               }
-              hideBranding();
-              if (!window.__maxiflixBrandingObserver && document.documentElement) {
-                window.__maxiflixBrandingObserver = new MutationObserver(hideBranding);
-                window.__maxiflixBrandingObserver.observe(document.documentElement, {
-                  childList: true,
-                  subtree: true,
-                  characterData: true
-                });
+
+              function makeButton() {
+                if (document.getElementById('maxiflix-continue-button')) return;
+                const button = document.createElement('button');
+                button.id = 'maxiflix-continue-button';
+                button.type = 'button';
+                button.innerHTML = '<span class="maxiflix-resume-title">CONTINUAR ASSISTINDO</span><small class="maxiflix-resume-detail">Seus vídeos recentes aparecerão aqui</small>';
+                button.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;width:100%;max-width:460px;min-height:54px;margin:8px auto;padding:10px 16px;border:0;border-radius:9px;background:#1769d2;color:#fff;font-weight:800;font-size:15px;text-align:left;box-shadow:0 3px 10px rgba(0,0,0,.22);cursor:pointer;position:relative;z-index:5;';
+                button.querySelector('small').style.cssText = 'font-size:12px;font-weight:500;opacity:.9;';
+                button.addEventListener('click', resumeSaved);
+                updateResumeButton();
+                return button;
               }
+
+              function replaceBranding() {
+                try {
+                  document.title = 'MAXi-FLIX';
+                  let anchor = null;
+                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label],body *').forEach(function(el) {
+                    if (anchor || el.id === 'maxiflix-continue-button') return;
+                    const label = [
+                      el.getAttribute && el.getAttribute('alt'),
+                      el.getAttribute && el.getAttribute('title'),
+                      el.getAttribute && el.getAttribute('aria-label'),
+                      el.children && el.children.length === 0 ? el.textContent : ''
+                    ].filter(Boolean).join(' ');
+                    if (brandPattern.test(label)) {
+                      anchor = el;
+                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
+                        anchor = el.parentElement;
+                      }
+                    }
+                  });
+                  if (anchor && !document.getElementById('maxiflix-continue-button')) {
+                    const button = makeButton();
+                    if (button) anchor.replaceWith(button);
+                  }
+                } catch (e) {}
+              }
+
+              function start() {
+                replaceBranding();
+                installTracker();
+                updateResumeButton();
+                if (!window.__maxiflixResumeObserver && document.documentElement) {
+                  window.__maxiflixResumeObserver = new MutationObserver(function() {
+                    replaceBranding();
+                    installTracker();
+                  });
+                  window.__maxiflixResumeObserver.observe(document.documentElement, {
+                    childList: true, subtree: true, characterData: true
+                  });
+                }
+                if (!window.__maxiflixResumeTimer) {
+                  window.__maxiflixResumeTimer = setInterval(installTracker, 1500);
+                }
+                try {
+                  const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null');
+                  if (pending && pending.url === window.location.href) {
+                    localStorage.setItem(storageKey, JSON.stringify(pending));
+                    sessionStorage.removeItem(pendingKey);
+                    resumeSaved();
+                  }
+                } catch (e) {}
+              }
+
+              start();
             })();
         """.trimIndent()
         siteWeb.evaluateJavascript(script, null)
