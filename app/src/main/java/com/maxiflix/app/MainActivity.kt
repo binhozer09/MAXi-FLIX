@@ -955,7 +955,7 @@ class MainActivity : AppCompatActivity() {
                       el.getAttribute && el.getAttribute('title'),
                       el.getAttribute && el.getAttribute('aria-label'),
                       el.children.length === 0 ? el.textContent : ''
-                    ].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
+                    ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
                     if (ownText && brandPattern.test(ownText)) hideElement(el);
                   }
 
@@ -965,7 +965,7 @@ class MainActivity : AppCompatActivity() {
                   const textNodes = [];
                   while (walker.nextNode()) {
                     const node = walker.currentNode;
-                    if (node.nodeValue && brandPattern.test(node.nodeValue.replace(/\\s+/g, ' ').trim())) {
+                    if (node.nodeValue && brandPattern.test(node.nodeValue.replace(/\s+/g, ' ').trim())) {
                       textNodes.push(node);
                     }
                   }
@@ -976,7 +976,7 @@ class MainActivity : AppCompatActivity() {
                     for (let depth = 0; depth < 3 && target.parentElement &&
                          target.parentElement !== document.body; depth++) {
                       const parent = target.parentElement;
-                      const text = (parent.innerText || parent.textContent || '').replace(/\\s+/g, ' ').trim();
+                      const text = (parent.innerText || parent.textContent || '').replace(/\s+/g, ' ').trim();
                       if (!brandPattern.test(text) || text.length > 90) break;
                       target = parent;
                     }
@@ -987,7 +987,7 @@ class MainActivity : AppCompatActivity() {
                   document.querySelectorAll(
                     '[class*="logo" i], [id*="logo" i], [class*="brand" i], [id*="brand" i]'
                   ).forEach(function(el) {
-                    const text = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+                    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
                     const label = [el.getAttribute('alt'), el.getAttribute('title'),
                       el.getAttribute('aria-label')].filter(Boolean).join(' ');
                     if (brandPattern.test(text) || brandPattern.test(label)) hideElement(el);
@@ -1108,7 +1108,7 @@ class MainActivity : AppCompatActivity() {
                       position: style.position, zIndex: style.zIndex,
                       width: width, height: height,
                       top: Math.round(rect.top), left: Math.round(rect.left),
-                      text: String(node.innerText || node.getAttribute('aria-label') || '').replace(/\\s+/g, ' ').slice(0, 70),
+                      text: String(node.innerText || node.getAttribute('aria-label') || '').replace(/\s+/g, ' ').slice(0, 70),
                       iframe: node.querySelector('iframe') ? 'yes' : 'no',
                       image: node.querySelector('img') ? 'yes' : 'no',
                       player: !!node.querySelector('video,[class*="player" i],[id*="player" i]')
@@ -1144,7 +1144,7 @@ class MainActivity : AppCompatActivity() {
                         (node.getAnimations && node.getAnimations().length > 0);
                       const text = String(node.innerText || node.textContent ||
                         node.getAttribute('aria-label') || node.getAttribute('title') || '')
-                        .replace(/\\s+/g, ' ').trim().slice(0, 100);
+                        .replace(/\s+/g, ' ').trim().slice(0, 100);
                       const attrs = [
                         node.id || '', typeof node.className === 'string' ? node.className : '',
                         node.getAttribute('aria-label') || '', node.getAttribute('title') || '',
@@ -1326,7 +1326,7 @@ class MainActivity : AppCompatActivity() {
                         const meaningful = Array.from(parent.children).filter(function(child) {
                           return !/^(SCRIPT|STYLE|NOSCRIPT)$/.test(child.tagName);
                         });
-                        const text = (parent.textContent || '').replace(/\\s+/g, '').trim();
+                        const text = (parent.textContent || '').replace(/\s+/g, '').trim();
                         if (meaningful.length === 0 && text.length === 0) {
                           const next = parent.parentElement;
                           parent.remove();
