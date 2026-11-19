@@ -555,23 +555,48 @@ class MainActivity : AppCompatActivity() {
 
               function replaceBranding() {
                 try {
-                  let anchor = null;
-                  document.querySelectorAll('img[alt],img[title],a[title],*[aria-label],body *').forEach(function(el) {
-                    if (anchor || el.id === 'maxiflix-continue-button') return;
-                    const label = [
-                      el.getAttribute && el.getAttribute('alt'),
-                      el.getAttribute && el.getAttribute('title'),
-                      el.getAttribute && el.getAttribute('aria-label'),
-                      el.children && el.children.length === 0 ? el.textContent : ''
-                    ].filter(Boolean).join(' ');
-                    if (brandPattern.test(label)) {
-                      anchor = el;
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') anchor = el.parentElement;
-                    }
+                  if (!document.body) return;
+                  let brandNode = null;
+                  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                  const nodes = [];
+                  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+                  nodes.forEach(function(node) {
+                    if (brandNode || !node.parentElement ||
+                        node.parentElement.closest('#maxiflix-continue-button')) return;
+                    const value = (node.nodeValue || '').trim();
+                    if (value && brandPattern.test(value)) brandNode = node;
                   });
-                  if (anchor && !document.getElementById('maxiflix-continue-button')) {
+
+                  if (!brandNode) return;
+
+                  const range = document.createRange();
+                  range.selectNode(brandNode);
+                  const measuredWidth = Math.ceil(range.getBoundingClientRect().width);
+                  const cover = document.createElement('span');
+                  cover.setAttribute('aria-label', ' ');
+                  cover.setAttribute('title', '');
+                  cover.style.cssText =
+                    'display:inline-block;vertical-align:middle;background:#000;' +
+                    'width:' + Math.max(36, measuredWidth) + 'px;height:1.15em;' +
+                    'border-radius:2px;pointer-events:none;user-select:none;';
+                  brandNode.parentNode.replaceChild(cover, brandNode);
+
+                  // O botão Assistidos fica separado da tarja e continua clicável.
+                  if (!document.getElementById('maxiflix-continue-button')) {
                     const button = makeButton();
-                    if (button) anchor.replaceWith(button);
+                    if (button) {
+                      button.style.cssText =
+                        'display:inline-flex;flex-direction:column;align-items:flex-start;' +
+                        'justify-content:center;gap:2px;max-width:100%;min-height:38px;' +
+                        'margin:6px 4px;padding:7px 12px;border:0;border-radius:8px;' +
+                        'background:#1769d2;color:#fff;font-weight:800;font-size:13px;' +
+                        'text-align:left;cursor:pointer;position:relative;z-index:5;';
+                      const host = cover.parentElement;
+                      if (host && host.parentNode) {
+                        host.parentNode.insertBefore(button, host.nextSibling);
+                      }
+                    }
                   }
                 } catch (e) {}
               }
