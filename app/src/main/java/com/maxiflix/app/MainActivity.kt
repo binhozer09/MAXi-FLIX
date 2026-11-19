@@ -555,7 +555,6 @@ class MainActivity : AppCompatActivity() {
 
               function replaceBranding() {
                 try {
-                  document.title = 'MAXi-FLIX';
                   let anchor = null;
                   document.querySelectorAll('img[alt],img[title],a[title],*[aria-label],body *').forEach(function(el) {
                     if (anchor || el.id === 'maxiflix-continue-button') return;
