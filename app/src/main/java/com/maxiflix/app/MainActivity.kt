@@ -765,13 +765,18 @@ class MainActivity : AppCompatActivity() {
               function readHistory() {
                 try {
                   const value = JSON.parse(localStorage.getItem(historyKey) || '[]');
-                  return Array.isArray(value) ? value : [];
+                  // Mantém somente registros criados a partir de um elemento de vídeo real.
+                  return Array.isArray(value) ? value.filter(function(entry) {
+                    return entry && entry.type === 'video' && typeof entry.url === 'string';
+                  }) : [];
                 } catch (e) { return []; }
               }
 
               function saveHistory(item) {
                 try {
-                  const list = readHistory().filter(function(entry) { return entry.url !== item.url; });
+                  const list = readHistory().filter(function(entry) {
+                    return (entry.videoUrl || entry.url) !== (item.videoUrl || item.url);
+                  });
                   list.unshift(item);
                   localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 30)));
                   updateResumeButton();
@@ -786,23 +791,6 @@ class MainActivity : AppCompatActivity() {
                 return title.slice(0, 120);
               }
 
-              function recordCurrentPage() {
-                try {
-                  const url = window.location.href;
-                  const path = window.location.pathname || '/';
-                  if (path === '/' || path === '' || brandPattern.test(currentTitle())) return;
-                  if (!/^https?:$/.test(window.location.protocol)) return;
-                  const previous = readHistory().find(function(item) { return item.url === url; }) || {};
-                  saveHistory({
-                    url: url,
-                    title: currentTitle(),
-                    time: previous.time || 0,
-                    duration: previous.duration || 0,
-                    updatedAt: Date.now()
-                  });
-                } catch (e) {}
-              }
-
               function formatTime(seconds) {
                 seconds = Math.max(0, Math.floor(seconds || 0));
                 const h = Math.floor(seconds / 3600);
@@ -814,10 +802,14 @@ class MainActivity : AppCompatActivity() {
 
               function saveProgress(video) {
                 try {
-                  if (!video || !Number.isFinite(video.duration) || video.duration <= 0 ||
+                  if (!video || video.dataset.maxiflixPlaybackStarted !== '1' ||
+                      !Number.isFinite(video.duration) || video.duration <= 0 ||
                       !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
+                  const videoUrl = video.currentSrc || video.src || '';
                   const item = {
+                    type: 'video',
                     url: window.location.href,
+                    videoUrl: videoUrl,
                     title: currentTitle(),
                     time: video.currentTime,
                     duration: video.duration,
@@ -910,6 +902,10 @@ class MainActivity : AppCompatActivity() {
                     if (video.dataset.maxiflixTracked === '1') return;
                     video.dataset.maxiflixTracked = '1';
                     let lastSave = 0;
+                    // Um servidor/página não conta: o registro só nasce após o vídeo tocar.
+                    video.addEventListener('playing', function() {
+                      video.dataset.maxiflixPlaybackStarted = '1';
+                    });
                     video.addEventListener('timeupdate', function() {
                       const now = Date.now();
                       if (now - lastSave >= 3000) { lastSave = now; saveProgress(video); }
@@ -999,7 +995,6 @@ class MainActivity : AppCompatActivity() {
                 hideBranding();
               }
               function start() {
-                recordCurrentPage();
                 replaceBranding();
                 installTracker();
                 updateResumeButton();
@@ -1018,7 +1013,6 @@ class MainActivity : AppCompatActivity() {
                 if (!window.__maxiflixResumeTimer) {
                   window.__maxiflixResumeTimer = setInterval(function() {
                     installTracker();
-                    recordCurrentPage();
                   }, 2000);
                 }
               }
