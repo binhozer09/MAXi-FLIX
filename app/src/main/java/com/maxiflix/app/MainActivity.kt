@@ -928,6 +928,7 @@ class MainActivity : AppCompatActivity() {
 
               function replaceBranding() {
                 try {
+                  if (document.getElementById('maxiflix-continue-button')) return;
                   let anchor = null;
                   document.querySelectorAll('img[alt],img[title],a[title],*[aria-label],body *').forEach(function(el) {
                     if (anchor || el.id === 'maxiflix-continue-button') return;
@@ -942,9 +943,19 @@ class MainActivity : AppCompatActivity() {
                       if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') anchor = el.parentElement;
                     }
                   });
-                  if (anchor && !document.getElementById('maxiflix-continue-button')) {
-                    const button = makeButton();
-                    if (button) anchor.replaceWith(button);
+                  const button = makeButton();
+                  if (!button) return;
+                  if (anchor) {
+                    anchor.replaceWith(button);
+                    return;
+                  }
+                  // Fallback: mostra o botão mesmo quando o site muda o texto/logo do cabeçalho.
+                  const host = document.querySelector('header, nav, [class*="header"], [id*="header"], main') || document.body;
+                  if (host) {
+                    button.style.margin = '10px auto';
+                    button.style.position = 'relative';
+                    button.style.zIndex = '2147483000';
+                    host.insertBefore(button, host.firstChild);
                   }
                 } catch (e) {}
               }
