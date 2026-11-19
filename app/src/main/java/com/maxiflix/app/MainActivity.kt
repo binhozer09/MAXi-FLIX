@@ -956,7 +956,7 @@ class MainActivity : AppCompatActivity() {
                   // Também trata a marca quando aparece junto de outras palavras no mesmo texto.
                   const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
                   let textNode;
-                  const brandText = /(?:rede\s*de\s*canais|redecanais)(?:\s*\\.?\s*in)?/ig;
+                  const brandText = /(?:rede\s*de\s*canais|redecanais)(?:\s*\.?\s*in)?/ig;
                   while ((textNode = textWalker.nextNode())) {
                     const parent = textNode.parentElement;
                     if (!parent || parent.closest('#maxiflix-watched-button,script,style,noscript')) continue;
