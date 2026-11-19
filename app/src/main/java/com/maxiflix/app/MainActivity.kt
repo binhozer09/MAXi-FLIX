@@ -914,50 +914,50 @@ class MainActivity : AppCompatActivity() {
               }
 
               function makeButton() {
-                // Remove a versão antiga e qualquer duplicata antes de criar o botão no cabeçalho.
                 document.querySelectorAll('#maxiflix-continue-button').forEach(function(old) { old.remove(); });
                 let button = document.getElementById('maxiflix-watched-button');
-                if (button) return button;
-                button = document.createElement('button');
-                button.id = 'maxiflix-watched-button';
-                button.type = 'button';
+                if (!button) {
+                  button = document.createElement('button');
+                  button.id = 'maxiflix-watched-button';
+                  button.type = 'button';
+                  button.setAttribute('aria-label', 'Abrir histórico de filmes e vídeos assistidos');
+                  button.style.cssText = 'display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:40px!important;margin:6px 10px!important;padding:9px 18px!important;border:0!important;border-radius:9px!important;background:#1769d2!important;color:#fff!important;font:800 14px Arial,sans-serif!important;letter-spacing:.3px!important;cursor:pointer!important;position:relative!important;z-index:2147483647!important;box-shadow:0 2px 8px rgba(0,0,0,.25)!important;';
+                }
                 button.textContent = 'ASSISTIDOS';
-                button.setAttribute('aria-label', 'Abrir histórico de vídeos assistidos');
-                button.style.cssText = 'display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:40px!important;margin:6px 10px!important;padding:9px 18px!important;border:0!important;border-radius:9px!important;background:#1769d2!important;color:#fff!important;font:800 14px Arial,sans-serif!important;letter-spacing:.3px!important;cursor:pointer!important;position:relative!important;z-index:2147483647!important;box-shadow:0 2px 8px rgba(0,0,0,.25)!important;';
-                button.addEventListener('click', showHistory);
+                if (button.dataset.maxiflixClickBound !== '1') {
+                  button.addEventListener('click', showHistory);
+                  button.dataset.maxiflixClickBound = '1';
+                }
                 return button;
               }
-
               function replaceBranding() {
                 try {
                   if (!document.body) return;
-                  // Mantém REDE DE CANAIS IN oculto sem substituir a marca pelo botão.
                   const candidates = document.querySelectorAll('body *');
                   for (let i = 0; i < candidates.length; i++) {
                     const el = candidates[i];
                     if (el.id === 'maxiflix-watched-button' || el.closest('#maxiflix-watched-button')) continue;
-                    const label = [
+                    const ownText = [
                       el.getAttribute && el.getAttribute('alt'),
                       el.getAttribute && el.getAttribute('title'),
                       el.getAttribute && el.getAttribute('aria-label'),
                       el.children.length === 0 ? el.textContent : ''
                     ].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
-                    if (label && brandPattern.test(label)) {
-                      let target = el;
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
-                        target = el.parentElement;
-                      }
-                      target.style.setProperty('display', 'none', 'important');
-                      target.setAttribute('data-maxiflix-brand-hidden', '1');
+                    if (!ownText || !brandPattern.test(ownText)) continue;
+                    let target = el;
+                    if (el.tagName === 'IMG' || el.tagName === 'SPAN' || el.tagName === 'B' || el.tagName === 'STRONG') {
+                      const parent = el.parentElement;
+                      if (parent && parent !== document.body && !parent.querySelector('#maxiflix-watched-button')) target = parent;
                     }
+                    target.style.setProperty('display', 'none', 'important');
+                    target.setAttribute('data-maxiflix-brand-hidden', '1');
                   }
-
-                  // Botão independente no início do cabeçalho superior.
                   const button = makeButton();
                   const host = document.querySelector('header, [role="banner"], [class*="header"], [id*="header"], nav') || document.body;
-                  if (button.parentElement !== host || host.firstElementChild !== button) {
-                    host.insertBefore(button, host.firstChild);
-                  }
+                  if (button.parentElement !== host || host.firstElementChild !== button) host.insertBefore(button, host.firstChild);
+                  button.style.setProperty('display', 'inline-flex', 'important');
+                  button.style.setProperty('visibility', 'visible', 'important');
+                  button.style.setProperty('opacity', '1', 'important');
                   updateResumeButton();
                 } catch (e) {
                   console.log('MAXIFLIX_HISTORY_BUTTON_ERROR ' + String(e && e.message || e));
