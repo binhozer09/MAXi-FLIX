@@ -933,25 +933,66 @@ class MainActivity : AppCompatActivity() {
               function replaceBranding() {
                 try {
                   if (!document.body) return;
-                  const candidates = document.querySelectorAll('body *');
+
+                  // Esconde o nome mesmo quando o site o divide em vários elementos,
+                  // usa texto dentro de um link/logo ou recria o cabeçalho dinamicamente.
+                  const hideElement = function(el) {
+                    if (!el || el === document.body ||
+                        el.id === 'maxiflix-watched-button' ||
+                        el.closest('#maxiflix-watched-button')) return;
+                    el.style.setProperty('display', 'none', 'important');
+                    el.style.setProperty('visibility', 'hidden', 'important');
+                    el.setAttribute('data-maxiflix-brand-hidden', '1');
+                  };
+
+                  const candidates = document.querySelectorAll(
+                    'body *:not(#maxiflix-watched-button):not(#maxiflix-watched-button *)'
+                  );
                   for (let i = 0; i < candidates.length; i++) {
                     const el = candidates[i];
-                    if (el.id === 'maxiflix-watched-button' || el.closest('#maxiflix-watched-button')) continue;
                     const ownText = [
                       el.getAttribute && el.getAttribute('alt'),
                       el.getAttribute && el.getAttribute('title'),
                       el.getAttribute && el.getAttribute('aria-label'),
                       el.children.length === 0 ? el.textContent : ''
                     ].filter(Boolean).join(' ').replace(/\\s+/g, ' ').trim();
-                    if (!ownText || !brandPattern.test(ownText)) continue;
-                    let target = el;
-                    if (el.tagName === 'IMG' || el.tagName === 'SPAN' || el.tagName === 'B' || el.tagName === 'STRONG') {
-                      const parent = el.parentElement;
-                      if (parent && parent !== document.body && !parent.querySelector('#maxiflix-watched-button')) target = parent;
-                    }
-                    target.style.setProperty('display', 'none', 'important');
-                    target.setAttribute('data-maxiflix-brand-hidden', '1');
+                    if (ownText && brandPattern.test(ownText)) hideElement(el);
                   }
+
+                  // Captura também logotipos em que "REDE DE CANAIS IN" está num nó
+                  // de texto dentro de DIV/A/HEADER, caso que a busca anterior não cobria.
+                  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                  const textNodes = [];
+                  while (walker.nextNode()) {
+                    const node = walker.currentNode;
+                    if (node.nodeValue && brandPattern.test(node.nodeValue.replace(/\\s+/g, ' ').trim())) {
+                      textNodes.push(node);
+                    }
+                  }
+                  textNodes.forEach(function(node) {
+                    let target = node.parentElement;
+                    if (!target || target.closest('#maxiflix-watched-button')) return;
+                    // Sobe somente enquanto o contêiner ainda contém apenas o nome/marca.
+                    for (let depth = 0; depth < 3 && target.parentElement &&
+                         target.parentElement !== document.body; depth++) {
+                      const parent = target.parentElement;
+                      const text = (parent.innerText || parent.textContent || '').replace(/\\s+/g, ' ').trim();
+                      if (!brandPattern.test(text) || text.length > 90) break;
+                      target = parent;
+                    }
+                    hideElement(target);
+                  });
+
+                  // Remove a marca por seletores comuns de logo e mantém o botão Assistidos.
+                  document.querySelectorAll(
+                    '[class*="logo" i], [id*="logo" i], [class*="brand" i], [id*="brand" i]'
+                  ).forEach(function(el) {
+                    const text = (el.innerText || el.textContent || '').replace(/\\s+/g, ' ').trim();
+                    const label = [el.getAttribute('alt'), el.getAttribute('title'),
+                      el.getAttribute('aria-label')].filter(Boolean).join(' ');
+                    if (brandPattern.test(text) || brandPattern.test(label)) hideElement(el);
+                  });
+
                   const button = makeButton();
                   const host = document.querySelector('header, [role="banner"], [class*="header"], [id*="header"], nav') || document.body;
                   if (button.parentElement !== host || host.firstElementChild !== button) host.insertBefore(button, host.firstChild);
