@@ -923,6 +923,7 @@ class MainActivity : AppCompatActivity() {
                       video.addEventListener('pause', function() { saveProgress(video); });
                       video.addEventListener('ended', function() {
                         saveProgress(video);
+                        try { localStorage.removeItem(resumeKey); } catch (_) {}
                       });
                       video.addEventListener('webkitbeginfullscreen', markPlayback);
                       video.addEventListener('enterpictureinpicture', markPlayback);
