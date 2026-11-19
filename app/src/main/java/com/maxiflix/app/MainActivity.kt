@@ -376,28 +376,48 @@ class MainActivity : AppCompatActivity() {
         val script = """
             (function() {
               const brandPattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
-              const storageKey = 'maxiflix_resume_v1';
+              const historyKey = 'maxiflix_watch_history_v1';
+              const resumeKey = 'maxiflix_resume_v1';
               const pendingKey = 'maxiflix_resume_pending_v1';
 
-              function readSaved() {
-                try { return JSON.parse(localStorage.getItem(storageKey) || 'null'); }
-                catch (e) { return null; }
+              function readHistory() {
+                try {
+                  const value = JSON.parse(localStorage.getItem(historyKey) || '[]');
+                  return Array.isArray(value) ? value : [];
+                } catch (e) { return []; }
               }
 
-              function saveProgress(video) {
+              function saveHistory(item) {
                 try {
-                  if (!video || !Number.isFinite(video.duration) ||
-                      video.duration <= 0 || !Number.isFinite(video.currentTime)) return;
-                  if (video.currentTime < 5 || video.currentTime >= video.duration - 8) return;
-                  const data = {
-                    url: window.location.href,
-                    title: (document.title || 'Vídeo').replace(/\s*[-|]\s*MAXi-FLIX.*/i, '').trim(),
-                    time: video.currentTime,
-                    duration: video.duration,
-                    updatedAt: Date.now()
-                  };
-                  localStorage.setItem(storageKey, JSON.stringify(data));
+                  const list = readHistory().filter(function(entry) { return entry.url !== item.url; });
+                  list.unshift(item);
+                  localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 30)));
                   updateResumeButton();
+                } catch (e) {}
+              }
+
+              function currentTitle() {
+                let title = (document.title || '').replace(/\s*[-|]\s*MAXi-FLIX.*/i, '').trim();
+                if (!title || brandPattern.test(title)) {
+                  title = document.querySelector('h1,h2,[class*="title"],[class*="name"]')?.textContent?.trim() || 'Conteúdo assistido';
+                }
+                return title.slice(0, 120);
+              }
+
+              function recordCurrentPage() {
+                try {
+                  const url = window.location.href;
+                  const path = window.location.pathname || '/';
+                  if (path === '/' || path === '' || brandPattern.test(currentTitle())) return;
+                  if (!/^https?:$/.test(window.location.protocol)) return;
+                  const previous = readHistory().find(function(item) { return item.url === url; }) || {};
+                  saveHistory({
+                    url: url,
+                    title: currentTitle(),
+                    time: previous.time || 0,
+                    duration: previous.duration || 0,
+                    updatedAt: Date.now()
+                  });
                 } catch (e) {}
               }
 
@@ -406,54 +426,100 @@ class MainActivity : AppCompatActivity() {
                 const h = Math.floor(seconds / 3600);
                 const m = Math.floor((seconds % 3600) / 60);
                 const s = seconds % 60;
-                return h > 0
-                  ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+                return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
                   : m + ':' + String(s).padStart(2, '0');
+              }
+
+              function saveProgress(video) {
+                try {
+                  if (!video || !Number.isFinite(video.duration) || video.duration <= 0 ||
+                      !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
+                  const item = {
+                    url: window.location.href,
+                    title: currentTitle(),
+                    time: video.currentTime,
+                    duration: video.duration,
+                    updatedAt: Date.now()
+                  };
+                  localStorage.setItem(resumeKey, JSON.stringify(item));
+                  saveHistory(item);
+                } catch (e) {}
               }
 
               function updateResumeButton() {
                 const button = document.getElementById('maxiflix-continue-button');
                 if (!button) return;
-                const saved = readSaved();
+                const list = readHistory();
+                const latest = list[0];
                 const title = button.querySelector('.maxiflix-resume-title');
                 const detail = button.querySelector('.maxiflix-resume-detail');
-                if (saved && saved.title) {
-                  title.textContent = saved.title;
-                  detail.textContent = 'Continuar de ' + formatTime(saved.time);
-                  button.disabled = false;
-                } else {
-                  title.textContent = 'CONTINUAR ASSISTINDO';
-                  detail.textContent = 'Seus vídeos recentes aparecerão aqui';
-                  button.disabled = true;
-                }
+                title.textContent = 'CONTINUAR ASSISTINDO';
+                detail.textContent = latest ? latest.title + ' • ' + list.length + ' no histórico'
+                  : 'Seus filmes e séries aparecerão aqui';
+                button.disabled = list.length === 0;
               }
 
-              function resumeSaved() {
-                const saved = readSaved();
-                if (!saved || !saved.url) return;
-                if (saved.url !== window.location.href) {
-                  try { sessionStorage.setItem(pendingKey, JSON.stringify(saved)); } catch (e) {}
-                  window.location.href = saved.url;
-                  return;
-                }
-                const pending = saved;
-                let attempts = 0;
-                const seekTimer = setInterval(function() {
-                  attempts++;
-                  const videos = Array.from(document.querySelectorAll('video'));
-                  const video = videos.find(function(item) {
-                    return Number.isFinite(item.duration) && item.duration > 0;
+              function showHistory() {
+                const list = readHistory();
+                if (!list.length) return;
+                let overlay = document.getElementById('maxiflix-history-overlay');
+                if (overlay) overlay.remove();
+                overlay = document.createElement('div');
+                overlay.id = 'maxiflix-history-overlay';
+                overlay.style.cssText = 'position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.82);display:flex;align-items:center;justify-content:center;padding:18px;box-sizing:border-box;';
+                const panel = document.createElement('div');
+                panel.style.cssText = 'width:100%;max-width:520px;max-height:80vh;overflow:auto;background:#151922;color:#fff;border-radius:14px;padding:18px;box-sizing:border-box;font-family:Arial,sans-serif;';
+                const heading = document.createElement('div');
+                heading.textContent = 'CONTINUAR ASSISTINDO';
+                heading.style.cssText = 'font-size:19px;font-weight:800;margin-bottom:14px;';
+                panel.appendChild(heading);
+                list.forEach(function(item) {
+                  const row = document.createElement('button');
+                  row.type = 'button';
+                  row.style.cssText = 'display:block;width:100%;text-align:left;padding:13px;margin:7px 0;border:1px solid #343b49;border-radius:9px;background:#222a38;color:#fff;font-size:15px;';
+                  const name = document.createElement('div');
+                  name.textContent = item.title || 'Conteúdo assistido';
+                  name.style.cssText = 'font-weight:700;';
+                  const info = document.createElement('small');
+                  info.textContent = item.time > 0 ? 'Continuar de ' + formatTime(item.time) : 'Assistido recentemente';
+                  info.style.cssText = 'display:block;margin-top:5px;color:#b9c4d5;';
+                  row.appendChild(name);
+                  row.appendChild(info);
+                  row.addEventListener('click', function() {
+                    try { sessionStorage.setItem(pendingKey, JSON.stringify(item)); } catch (e) {}
+                    window.location.href = item.url;
                   });
-                  if (video) {
-                    try {
-                      video.currentTime = Math.min(pending.time, Math.max(0, video.duration - 2));
-                      video.play().catch(function() {});
-                    } catch (e) {}
-                    clearInterval(seekTimer);
-                  } else if (attempts >= 30) {
-                    clearInterval(seekTimer);
-                  }
-                }, 500);
+                  panel.appendChild(row);
+                });
+                const close = document.createElement('button');
+                close.type = 'button';
+                close.textContent = 'FECHAR';
+                close.style.cssText = 'margin-top:12px;padding:11px 18px;border:0;border-radius:8px;background:#1769d2;color:#fff;font-weight:800;';
+                close.addEventListener('click', function() { overlay.remove(); });
+                panel.appendChild(close);
+                overlay.appendChild(panel);
+                overlay.addEventListener('click', function(event) { if (event.target === overlay) overlay.remove(); });
+                document.body.appendChild(overlay);
+              }
+
+              function resumePendingIfPossible() {
+                try {
+                  const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null');
+                  if (!pending || pending.url !== window.location.href) return;
+                  sessionStorage.removeItem(pendingKey);
+                  if (!(pending.time > 0)) return;
+                  let attempts = 0;
+                  const timer = setInterval(function() {
+                    attempts++;
+                    const video = Array.from(document.querySelectorAll('video')).find(function(v) {
+                      return Number.isFinite(v.duration) && v.duration > 0;
+                    });
+                    if (video) {
+                      try { video.currentTime = Math.min(pending.time, Math.max(0, video.duration - 2)); } catch (e) {}
+                      clearInterval(timer);
+                    } else if (attempts >= 30) clearInterval(timer);
+                  }, 500);
+                } catch (e) {}
               }
 
               function installTracker() {
@@ -464,29 +530,25 @@ class MainActivity : AppCompatActivity() {
                     let lastSave = 0;
                     video.addEventListener('timeupdate', function() {
                       const now = Date.now();
-                      if (now - lastSave >= 3000) {
-                        lastSave = now;
-                        saveProgress(video);
-                      }
+                      if (now - lastSave >= 3000) { lastSave = now; saveProgress(video); }
                     });
                     video.addEventListener('pause', function() { saveProgress(video); });
                     video.addEventListener('ended', function() {
-                      try { localStorage.removeItem(storageKey); } catch (e) {}
-                      updateResumeButton();
+                      try { localStorage.removeItem(resumeKey); } catch (e) {}
                     });
                   });
                 } catch (e) {}
               }
 
               function makeButton() {
-                if (document.getElementById('maxiflix-continue-button')) return;
+                if (document.getElementById('maxiflix-continue-button')) return null;
                 const button = document.createElement('button');
                 button.id = 'maxiflix-continue-button';
                 button.type = 'button';
-                button.innerHTML = '<span class="maxiflix-resume-title">CONTINUAR ASSISTINDO</span><small class="maxiflix-resume-detail">Seus vídeos recentes aparecerão aqui</small>';
+                button.innerHTML = '<span class="maxiflix-resume-title">CONTINUAR ASSISTINDO</span><small class="maxiflix-resume-detail">Seus filmes e séries aparecerão aqui</small>';
                 button.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;width:100%;max-width:460px;min-height:54px;margin:8px auto;padding:10px 16px;border:0;border-radius:9px;background:#1769d2;color:#fff;font-weight:800;font-size:15px;text-align:left;box-shadow:0 3px 10px rgba(0,0,0,.22);cursor:pointer;position:relative;z-index:5;';
                 button.querySelector('small').style.cssText = 'font-size:12px;font-weight:500;opacity:.9;';
-                button.addEventListener('click', resumeSaved);
+                button.addEventListener('click', showHistory);
                 updateResumeButton();
                 return button;
               }
@@ -505,9 +567,7 @@ class MainActivity : AppCompatActivity() {
                     ].filter(Boolean).join(' ');
                     if (brandPattern.test(label)) {
                       anchor = el;
-                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') {
-                        anchor = el.parentElement;
-                      }
+                      if (el.tagName === 'IMG' && el.parentElement && el.parentElement.tagName === 'A') anchor = el.parentElement;
                     }
                   });
                   if (anchor && !document.getElementById('maxiflix-continue-button')) {
@@ -518,9 +578,11 @@ class MainActivity : AppCompatActivity() {
               }
 
               function start() {
+                recordCurrentPage();
                 replaceBranding();
                 installTracker();
                 updateResumeButton();
+                resumePendingIfPossible();
                 if (!window.__maxiflixResumeObserver && document.documentElement) {
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
                     replaceBranding();
@@ -531,18 +593,12 @@ class MainActivity : AppCompatActivity() {
                   });
                 }
                 if (!window.__maxiflixResumeTimer) {
-                  window.__maxiflixResumeTimer = setInterval(installTracker, 1500);
+                  window.__maxiflixResumeTimer = setInterval(function() {
+                    installTracker();
+                    recordCurrentPage();
+                  }, 2000);
                 }
-                try {
-                  const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null');
-                  if (pending && pending.url === window.location.href) {
-                    localStorage.setItem(storageKey, JSON.stringify(pending));
-                    sessionStorage.removeItem(pendingKey);
-                    resumeSaved();
-                  }
-                } catch (e) {}
               }
-
               start();
             })();
         """.trimIndent()
