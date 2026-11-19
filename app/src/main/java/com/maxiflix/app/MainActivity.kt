@@ -925,40 +925,78 @@ class MainActivity : AppCompatActivity() {
               // O acesso ao histórico agora é feito pelo botão nativo da barra superior.
               window.__maxiflixShowHistory = showHistory;
               document.querySelectorAll('#maxiflix-watched-button').forEach(function(old) { old.remove(); });
-              function replaceBranding() {
+              function normalizeBrand(value) {
+                return String(value || '').toLowerCase().replace(/[\\s._-]/g, '');
+              }
+              function isBrand(value) {
+                const normalized = normalizeBrand(value);
+                return normalized === 'rededecanaisin' ||
+                  normalized === 'redecanaisin' ||
+                  normalized === 'rededecanais' ||
+                  normalized === 'redecanais';
+              }
+              function hideBranding() {
+                if (window.__maxiflixBrandHiding || !document.body) return;
+                window.__maxiflixBrandHiding = true;
                 try {
-                  if (!document.body) return;
-                  // Remove any previous oversized cover immediately.
-                  const previous = document.getElementById('maxiflix-brand-cover');
-                  if (previous) previous.remove();
-                  window.__maxiflixBrandTarget = null;
-                  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-                  let node;
-                  while ((node = walker.nextNode())) {
-                    if (!node.nodeValue || !brandPattern.test(node.nodeValue.replace(/\\s+/g, ' ').trim())) continue;
-                    const parent = node.parentElement;
-                    if (!parent || parent.closest('#maxiflix-watched-button') ||
-                        parent.closest('script,style,noscript')) continue;
-                    // Measure only the exact text node, never its parent/container.
-                    const range = document.createRange();
-                    range.selectNode(node);
-                    const rect = range.getBoundingClientRect();
-                    if (!rect || rect.width <= 0 || rect.height <= 0) continue;
-                    const cover = document.createElement('div');
-                    cover.id = 'maxiflix-brand-cover';
-                    cover.setAttribute('aria-hidden', 'true');
-                    cover.style.cssText = 'position:fixed!important;left:' + Math.max(0, rect.left - 2) +
-                      'px!important;top:' + Math.max(0, rect.top - 1) +
-                      'px!important;width:' + (rect.width + 4) +
-                      'px!important;height:' + (rect.height + 2) +
-                      'px!important;background:#000!important;z-index:2147483646!important;pointer-events:none!important;border-radius:2px!important;';
-                    document.body.appendChild(cover);
-                    window.__maxiflixBrandTarget = node;
-                    break;
+                  const root = document.body;
+                  // Oculta somente texto que corresponde à marca, sem remover o link ou o botão pai.
+                  const elements = root.querySelectorAll('*');
+                  for (let i = elements.length - 1; i >= 0; i--) {
+                    const element = elements[i];
+                    if (element.id === 'maxiflix-watched-button') continue;
+                    if (!isBrand(element.textContent)) continue;
+                    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+                    let child;
+                    while ((child = walker.nextNode())) {
+                      if (child.nodeValue && child.nodeValue.trim()) child.nodeValue = '';
+                    }
+                  }
+
+                  // Também trata a marca quando aparece junto de outras palavras no mesmo texto.
+                  const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+                  let textNode;
+                  const brandText = /(?:rede\\s*de\\s*canais|redecanais)(?:\\s*\\.?\\s*in)?/ig;
+                  while ((textNode = textWalker.nextNode())) {
+                    const parent = textNode.parentElement;
+                    if (!parent || parent.closest('#maxiflix-watched-button,script,style,noscript')) continue;
+                    const cleaned = textNode.nodeValue.replace(brandText, '');
+                    if (cleaned !== textNode.nodeValue) textNode.nodeValue = cleaned;
+                  }
+
+                  // Se o nome estiver no próprio arquivo de imagem/SVG, oculta apenas essa imagem.
+                  const visuals = root.querySelectorAll('img,svg');
+                  for (let i = 0; i < visuals.length; i++) {
+                    const visual = visuals[i];
+                    const metadata = [
+                      visual.getAttribute('alt'),
+                      visual.getAttribute('title'),
+                      visual.getAttribute('aria-label'),
+                      visual.getAttribute('src'),
+                      visual.getAttribute('href'),
+                      visual.getAttribute('data-src')
+                    ].join(' ');
+                    if (/redecanais/i.test(metadata)) {
+                      visual.style.setProperty('display', 'none', 'important');
+                    }
+                  }
+
+                  // Remove somente fundos gráficos cujo endereço identifica explicitamente a marca.
+                  const backgrounds = root.querySelectorAll('[style]');
+                  for (let i = 0; i < backgrounds.length; i++) {
+                    const element = backgrounds[i];
+                    if (/redecanais/i.test(element.style.backgroundImage)) {
+                      element.style.setProperty('background-image', 'none', 'important');
+                    }
                   }
                 } catch (e) {
-                  console.log('MAXIFLIX_BRAND_COVER_ERROR ' + String(e && e.message || e));
+                  console.log('MAXIFLIX_BRAND_HIDE_ERROR ' + String(e && e.message || e));
+                } finally {
+                  window.__maxiflixBrandHiding = false;
                 }
+              }
+              function replaceBranding() {
+                hideBranding();
               }
               function start() {
                 recordCurrentPage();
@@ -970,39 +1008,13 @@ class MainActivity : AppCompatActivity() {
                   // Não recriar a tarja dentro do MutationObserver: isso altera o DOM
                   // observado e cria um ciclo infinito que congela os toques no WebView.
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
+                    hideBranding();
                     installTracker();
                   });
                   window.__maxiflixResumeObserver.observe(document.documentElement, {
-                    childList: true, subtree: true, characterData: true
+                    childList: true, subtree: true, characterData: true,
+                    attributes: true, attributeFilter: ['src', 'alt', 'title', 'aria-label']
                   });
-                }
-                if (!window.__maxiflixBrandCoverRefresh) {
-                  window.__maxiflixBrandCoverRefresh = setInterval(function() {
-                    const target = window.__maxiflixBrandTarget;
-                    if (!target || !target.isConnected) return;
-                    const range = document.createRange();
-                    range.selectNode(target);
-                    const rect = range.getBoundingClientRect();
-                    const cover = document.getElementById('maxiflix-brand-cover');
-                    if (!cover || !rect || rect.width <= 0 || rect.height <= 0) return;
-                    cover.style.left = Math.max(0, rect.left - 2) + 'px';
-                    cover.style.top = Math.max(0, rect.top - 1) + 'px';
-                    cover.style.width = (rect.width + 4) + 'px';
-                    cover.style.height = (rect.height + 2) + 'px';
-                  }, 500);
-                  window.addEventListener('scroll', function() {
-                    const target = window.__maxiflixBrandTarget;
-                    const cover = document.getElementById('maxiflix-brand-cover');
-                    if (!target || !cover || !target.isConnected) return;
-                    const range = document.createRange();
-                    range.selectNode(target);
-                    const rect = range.getBoundingClientRect();
-                    if (!rect || rect.width <= 0 || rect.height <= 0) return;
-                    cover.style.left = Math.max(0, rect.left - 2) + 'px';
-                    cover.style.top = Math.max(0, rect.top - 1) + 'px';
-                    cover.style.width = (rect.width + 4) + 'px';
-                    cover.style.height = (rect.height + 2) + 'px';
-                  }, true);
                 }
                 if (!window.__maxiflixResumeTimer) {
                   window.__maxiflixResumeTimer = setInterval(function() {
