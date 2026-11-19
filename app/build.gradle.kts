@@ -26,8 +26,8 @@ android {
         applicationId = "com.maxiflix.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 45
-        versionName = "1.8.27"
+        versionCode = 46
+        versionName = "1.8.28"
     }
 
     signingConfigs {
