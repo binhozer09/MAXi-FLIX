@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fullscreenContainer: FrameLayout
     private lateinit var siteWeb: WebView
     private lateinit var updateButton: Button
+    private lateinit var watchedButton: Button
     private lateinit var updateProgress: ProgressBar
     private lateinit var updateStatus: TextView
     private lateinit var backButton: Button
@@ -216,6 +217,7 @@ class MainActivity : AppCompatActivity() {
         fullscreenContainer = findViewById(R.id.fullscreenContainer)
         siteWeb = findViewById(R.id.siteWeb)
         updateButton = findViewById(R.id.updateButton)
+        watchedButton = findViewById(R.id.watchedButton)
         updateProgress = findViewById(R.id.updateProgress)
         updateStatus = findViewById(R.id.updateStatus)
         backButton = findViewById(R.id.backButton)
@@ -235,6 +237,13 @@ class MainActivity : AppCompatActivity() {
         pendingWebViewState = savedInstanceState
         getSharedPreferences("maxiflix_local_data", MODE_PRIVATE).edit()
             .putLong("last_opened_at", System.currentTimeMillis()).apply()
+
+        watchedButton.setOnClickListener {
+            siteWeb.evaluateJavascript(
+                "if (typeof window.__maxiflixShowHistory === 'function') { window.__maxiflixShowHistory(); }",
+                null
+            )
+        }
 
         updateButton.setOnClickListener {
             if (downloadedApkFile().exists()) {
@@ -913,23 +922,9 @@ class MainActivity : AppCompatActivity() {
                 } catch (e) {}
               }
 
-              function makeButton() {
-                document.querySelectorAll('#maxiflix-continue-button').forEach(function(old) { old.remove(); });
-                let button = document.getElementById('maxiflix-watched-button');
-                if (!button) {
-                  button = document.createElement('button');
-                  button.id = 'maxiflix-watched-button';
-                  button.type = 'button';
-                  button.setAttribute('aria-label', 'Abrir histórico de filmes e vídeos assistidos');
-                  button.style.cssText = 'display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:40px!important;margin:6px 10px!important;padding:9px 18px!important;border:0!important;border-radius:9px!important;background:#1769d2!important;color:#fff!important;font:800 14px Arial,sans-serif!important;letter-spacing:.3px!important;cursor:pointer!important;position:relative!important;z-index:2147483647!important;box-shadow:0 2px 8px rgba(0,0,0,.25)!important;';
-                }
-                button.textContent = 'ASSISTIDOS';
-                if (button.dataset.maxiflixClickBound !== '1') {
-                  button.addEventListener('click', showHistory);
-                  button.dataset.maxiflixClickBound = '1';
-                }
-                return button;
-              }
+              // O acesso ao histórico agora é feito pelo botão nativo da barra superior.
+              window.__maxiflixShowHistory = showHistory;
+              document.querySelectorAll('#maxiflix-watched-button').forEach(function(old) { old.remove(); });
               function replaceBranding() {
                 try {
                   if (!document.body) return;
@@ -1003,12 +998,7 @@ class MainActivity : AppCompatActivity() {
                     if (brandPattern.test(text) || brandPattern.test(label)) hideElement(el);
                   });
 
-                  const button = makeButton();
-                  const host = document.querySelector('header, [role="banner"], [class*="header"], [id*="header"], nav') || document.body;
-                  if (button.parentElement !== host || host.firstElementChild !== button) host.insertBefore(button, host.firstChild);
-                  button.style.setProperty('display', 'inline-flex', 'important');
-                  button.style.setProperty('visibility', 'visible', 'important');
-                  button.style.setProperty('opacity', '1', 'important');
+                  document.querySelectorAll('#maxiflix-watched-button').forEach(function(old) { old.remove(); });
                   updateResumeButton();
                 } catch (e) {
                   console.log('MAXIFLIX_HISTORY_BUTTON_ERROR ' + String(e && e.message || e));
@@ -1063,7 +1053,7 @@ class MainActivity : AppCompatActivity() {
               return JSON.stringify({
                 href: location.href,
                 ready: document.readyState,
-                button: !!document.getElementById('maxiflix-watched-button'),
+                button: typeof window.__maxiflixShowHistory === 'function',
                 brandMatches: !!Array.from(document.querySelectorAll('body *')).find(function(el) {
                   const label = [el.getAttribute('alt'), el.getAttribute('title'), el.getAttribute('aria-label'),
                     el.children.length === 0 ? el.textContent : ''].filter(Boolean).join(' ');
