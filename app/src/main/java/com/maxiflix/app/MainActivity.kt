@@ -989,7 +989,7 @@ class MainActivity : AppCompatActivity() {
               return JSON.stringify({
                 href: location.href,
                 ready: document.readyState,
-                button: !!document.getElementById('maxiflix-continue-button'),
+                button: !!document.getElementById('maxiflix-watched-button'),
                 brandMatches: !!Array.from(document.querySelectorAll('body *')).find(function(el) {
                   const label = [el.getAttribute('alt'), el.getAttribute('title'), el.getAttribute('aria-label'),
                     el.children.length === 0 ? el.textContent : ''].filter(Boolean).join(' ');
