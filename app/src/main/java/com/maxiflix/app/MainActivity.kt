@@ -926,7 +926,7 @@ class MainActivity : AppCompatActivity() {
               window.__maxiflixShowHistory = showHistory;
               document.querySelectorAll('#maxiflix-watched-button').forEach(function(old) { old.remove(); });
               function normalizeBrand(value) {
-                return String(value || '').toLowerCase().replace(/[\\s._-]/g, '');
+                return String(value || '').toLowerCase().replace(/[\s._-]/g, '');
               }
               function isBrand(value) {
                 const normalized = normalizeBrand(value);
@@ -956,7 +956,7 @@ class MainActivity : AppCompatActivity() {
                   // Também trata a marca quando aparece junto de outras palavras no mesmo texto.
                   const textWalker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
                   let textNode;
-                  const brandText = /(?:rede\\s*de\\s*canais|redecanais)(?:\\s*\\.?\\s*in)?/ig;
+                  const brandText = /(?:rede\s*de\s*canais|redecanais)(?:\s*\\.?\s*in)?/ig;
                   while ((textNode = textWalker.nextNode())) {
                     const parent = textNode.parentElement;
                     if (!parent || parent.closest('#maxiflix-watched-button,script,style,noscript')) continue;
@@ -1005,8 +1005,7 @@ class MainActivity : AppCompatActivity() {
                 updateResumeButton();
                 resumePendingIfPossible();
                 if (!window.__maxiflixResumeObserver && document.documentElement) {
-                  // Não recriar a tarja dentro do MutationObserver: isso altera o DOM
-                  // observado e cria um ciclo infinito que congela os toques no WebView.
+                  // A busca é restrita ao texto e à imagem da marca; não cria camadas sobre a página.
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
                     hideBranding();
                     installTracker();
@@ -1196,7 +1195,7 @@ class MainActivity : AppCompatActivity() {
                   scope.querySelectorAll('[id],[class],[data-ad],[aria-label],iframe,img,a').forEach(function(node) {
                     candidates.add(node);
                   });
-                  const markers = /(^|[-_\\s])(ad|ads|advert|advertisement|popup|popunder|interstitial|sponsor)([-_\\s]|$)/i;
+                  const markers = /(^|[-_\s])(ad|ads|advert|advertisement|popup|popunder|interstitial|sponsor)([-_\s]|$)/i;
                   candidates.forEach(function(node) {
                     if (!node || node.nodeType !== 1 ||
                         node === document.body || node === document.documentElement) return;
