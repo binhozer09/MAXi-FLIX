@@ -3,7 +3,7 @@ name: Publish MAXi-FLIX update
 on:
   push:
     branches:
-      - "release/disabled-temporarily"
+      - "release/1.7.0"
     tags:
       - "maxiflix-v*"
   workflow_dispatch:
