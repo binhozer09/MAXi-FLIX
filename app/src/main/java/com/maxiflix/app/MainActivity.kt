@@ -780,7 +780,15 @@ class MainActivity : AppCompatActivity() {
                       (!item.videoUrl || entry.videoUrl !== item.videoUrl);
                   });
                   list.unshift(item);
-                  localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 30)));
+                  // Seleções manuais ficam limitadas às 10 capas mais recentes.
+                  const selections = list.filter(function(entry) { return entry.type === 'selection'; }).slice(0, 10);
+                  // O histórico de reprodução continua separado e preserva o progresso.
+                  const videos = list.filter(function(entry) { return entry.type === 'video'; }).slice(0, 30);
+                  localStorage.setItem(historyKey, JSON.stringify(
+                    selections.concat(videos).sort(function(a, b) {
+                      return (b.updatedAt || 0) - (a.updatedAt || 0);
+                    })
+                  ));
                   updateResumeButton();
                 } catch (e) {}
               }
@@ -853,38 +861,43 @@ class MainActivity : AppCompatActivity() {
                   empty.style.cssText = 'padding:18px 8px;color:#c7cfdd;text-align:center;font-size:15px;';
                   panel.appendChild(empty);
                 }
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;';
                 list.forEach(function(item) {
-                  const row = document.createElement('button');
-                  row.type = 'button';
-                  row.style.cssText = 'display:block;width:100%;text-align:left;padding:13px;margin:7px 0;border:1px solid #343b49;border-radius:9px;background:#222a38;color:#fff;font-size:15px;';
-                  row.style.cssText += 'display:flex;align-items:center;gap:12px;';
+                  const card = document.createElement('button');
+                  card.type = 'button';
+                  card.style.cssText = 'min-width:0;padding:0 0 9px;border:1px solid #343b49;border-radius:9px;overflow:hidden;background:#222a38;color:#fff;text-align:left;';
                   if (item.poster) {
                     const poster = document.createElement('img');
                     poster.src = item.poster;
-                    poster.alt = '';
+                    poster.alt = item.title || '';
                     poster.loading = 'lazy';
-                    poster.style.cssText = 'width:62px;height:88px;object-fit:cover;border-radius:6px;flex:0 0 62px;background:#111;';
-                    row.appendChild(poster);
+                    poster.style.cssText = 'display:block;width:100%;aspect-ratio:2/3;object-fit:cover;background:#111;';
+                    poster.onerror = function() { this.style.display = 'none'; };
+                    card.appendChild(poster);
+                  } else {
+                    const placeholder = document.createElement('div');
+                    placeholder.textContent = 'CAPA INDISPONÍVEL';
+                    placeholder.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:2/3;background:#111;color:#9aa6b8;font-size:10px;text-align:center;';
+                    card.appendChild(placeholder);
                   }
-                  const details = document.createElement('div');
-                  details.style.cssText = 'min-width:0;flex:1;';
                   const name = document.createElement('div');
                   name.textContent = item.title || 'Filme selecionado';
-                  name.style.cssText = 'font-weight:700;';
+                  name.style.cssText = 'padding:7px 7px 2px;font-size:12px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
+                  card.appendChild(name);
                   const info = document.createElement('small');
                   info.textContent = item.type === 'selection'
-                    ? 'Selecionado no catálogo'
-                    : (item.time > 0 ? 'Continuar de ' + formatTime(item.time) : 'Vídeo reproduzido');
-                  info.style.cssText = 'display:block;margin-top:5px;color:#b9c4d5;';
-                  details.appendChild(name);
-                  details.appendChild(info);
-                  row.appendChild(details);
-                  row.addEventListener('click', function() {
+                    ? 'Selecionado'
+                    : (item.time > 0 ? 'Continuar ' + formatTime(item.time) : 'Assistido');
+                  info.style.cssText = 'display:block;padding:0 7px;color:#b9c4d5;font-size:10px;';
+                  card.appendChild(info);
+                  card.addEventListener('click', function() {
                     try { sessionStorage.setItem(pendingKey, JSON.stringify(item)); } catch (e) {}
                     window.location.href = item.url;
                   });
-                  panel.appendChild(row);
+                  grid.appendChild(card);
                 });
+                panel.appendChild(grid);
                 const close = document.createElement('button');
                 close.type = 'button';
                 close.textContent = 'FECHAR';
@@ -933,6 +946,8 @@ class MainActivity : AppCompatActivity() {
                     const destination = link.href || link.getAttribute('href') || '';
                     if (!destination || destination === window.location.href ||
                         destination.indexOf('javascript:') === 0) return;
+                    const linkLabel = (link.innerText || link.textContent || '').replace(/\\s+/g, ' ').trim();
+                    if (/^(HD|SD|FULL HD|720P|1080P|SERVIDOR|SERVER|PLAY\\s*\\d*)$/i.test(linkLabel)) return;
                     const destinationUrl = new URL(destination, window.location.href);
                     if (!/^https?:$/.test(destinationUrl.protocol) ||
                         !(destinationUrl.hostname === 'redecanais.in' ||
@@ -947,9 +962,37 @@ class MainActivity : AppCompatActivity() {
                     title = title.replace(/\\s+/g, ' ').slice(0, 120);
                     if (!title || /^(assistir|play|dublado|legendado|ver filme)$/i.test(title) ||
                         /servidor|server|play\\s*\\d+/i.test(title)) return;
-                    const poster = image.currentSrc || image.src ||
-                      image.getAttribute('data-src') || image.getAttribute('data-lazy-src') || '';
-                    if (!poster || poster.indexOf('data:') === 0) return;
+                    const candidates = [
+                      image.getAttribute('data-src'),
+                      image.getAttribute('data-lazy-src'),
+                      image.getAttribute('data-original'),
+                      image.getAttribute('data-original-src'),
+                      image.getAttribute('src'),
+                      image.currentSrc,
+                      image.src,
+                      image.getAttribute('srcset') && image.getAttribute('srcset').split(',')[0].trim().split(/\\s+/)[0]
+                    ];
+                    let poster = '';
+                    for (let i = 0; i < candidates.length; i++) {
+                      const candidate = candidates[i];
+                      if (!candidate || /^(data:|blob:|about:)/i.test(candidate) ||
+                          /transparent|placeholder|loading/i.test(candidate)) continue;
+                      try {
+                        const parsed = new URL(candidate, window.location.href);
+                        if (/^https?:$/.test(parsed.protocol)) { poster = parsed.href; break; }
+                      } catch (_) {}
+                    }
+                    if (!poster) {
+                      let node = image;
+                      for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
+                        const bg = node && node.style ? node.style.backgroundImage : '';
+                        const match = bg && bg.match(/url\\(["']?(.*?)["']?\\)/i);
+                        if (match && match[1] && /^https?:/i.test(match[1])) { poster = match[1]; break; }
+                      }
+                    }
+                    if (!poster) return;
+                    if (/\\bHD\\b|servidor|server|assistir|play\\s*\\d*/i.test(cardText) &&
+                        cardText.length < 45) return;
                     saveHistory({
                       type: 'selection',
                       url: destination,
