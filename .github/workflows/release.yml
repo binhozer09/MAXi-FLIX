@@ -1,4 +1,4 @@
-name: Publish MAXi-FLIX update # build 1.8.33
+name: Publish LOKI CINEMA update # build 1.8.34
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.33"
+        default: "maxiflix-v1.8.34"
         type: string
 
 permissions:
@@ -126,7 +126,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "Assistidos salva somente as capas de filmes e séries selecionadas manualmente. Limite de 10 capas, mais recentes primeiro. Não registra progresso de reprodução."
+              "releaseNotes": "LOKI CINEMA: identidade visual atualizada. Assistidos salva somente as capas de filmes e séries selecionadas manualmente. Limite de 10 capas, mais recentes primeiro. Não registra progresso de reprodução."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -137,8 +137,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.33' }}
-          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.33' }}
+          name: LOKI CINEMA ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.34' }}
+          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.34' }}
           target_commitish: release/1.7.0
           generate_release_notes: true
           files: |
