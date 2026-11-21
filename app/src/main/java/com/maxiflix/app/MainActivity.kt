@@ -433,7 +433,7 @@ class MainActivity : AppCompatActivity() {
                       link.getAttribute('title') ||
                       (image && (image.getAttribute('alt') || image.getAttribute('title'))) ||
                       (link.innerText || link.textContent || '');
-                    title = (title || '').replace(/\\s+/g, ' ').trim();
+                    title = (title || '').replace(/\s+/g, ' ').trim();
                     if (!title || brandPattern.test(title)) {
                       title = decodeURIComponent(destination.pathname.split('/').filter(Boolean).pop() || '')
                         .replace(/[-_]+/g, ' ').trim();
