@@ -4,7 +4,7 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Mesma composição da barra do app: coroa à esquerda e nome à direita. -->
+    <!-- Marca no mesmo arranjo do cabeçalho: coroa à esquerda, LOKI sobre CINEMA à direita. -->
     <group
         android:scaleX="0.78"
         android:pivotX="8"
@@ -12,17 +12,17 @@
         <path
             android:fillColor="#00000000"
             android:strokeColor="#FFD36A"
-            android:strokeWidth="4"
+            android:strokeWidth="4.2"
             android:strokeLineCap="square"
             android:strokeLineJoin="round"
-            android:pathData="M8,31 L8,53 L20,53 M27,31 L27,53 M27,31 L39,31 L39,53 L27,53 Z M46,31 L46,53 M46,42 L58,31 M46,42 L58,53 M65,31 L65,53" />
+            android:pathData="M8,31 L8,53 L20,53 M27,31 L39,31 L39,53 L27,53 Z M46,31 L46,53 M46,42 L58,31 M46,42 L58,53 M65,31 L65,53 M61,31 L69,31 M61,53 L69,53" />
         <path
             android:fillColor="#00000000"
-            android:strokeColor="#FFF0B5"
-            android:strokeWidth="2.1"
+            android:strokeColor="#FFD36A"
+            android:strokeWidth="2.5"
             android:strokeLineCap="square"
             android:strokeLineJoin="round"
-            android:pathData="M9,66 L9,77 M9,66 L16,66 M9,71 L15,71 M9,77 L16,77 M21,66 L21,77 M21,66 L29,66 M21,71 L28,71 M21,77 L29,77 M34,77 L34,66 L42,66 M34,71 L41,71 M47,66 L47,77 M55,66 L55,77 L63,77 M55,71 L62,71 M68,66 L68,77 M68,66 L76,66 M68,71 L75,71 M68,77 L76,77" />
+            android:pathData="M9,66 L9,77 L16,77 M9,66 L16,66 M21,66 L21,77 M21,66 L29,66 M21,71 L28,71 M34,77 L34,66 L42,66 M34,71 L41,71 M47,66 L47,77 M55,66 L55,77 L63,77 M55,71 L62,71 M68,66 L68,77 M68,66 L76,66 M68,71 L75,71 M68,77 L76,77" />
     </group>
     <group android:translateX="-66">
         <path
