@@ -1,4 +1,4 @@
-name: Publish MAXi-FLIX update
+name: Publish MAXi-FLIX update # build 1.8.33
 
 on:
   push:
