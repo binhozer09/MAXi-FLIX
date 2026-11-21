@@ -7,9 +7,6 @@
     <path android:fillColor="#E9B95D" android:pathData="M18,45 L21,35 L26,40 L31,29 L36,40 L41,35 L44,45 L41,57 L21,57 Z" />
     <path android:fillColor="#FFF0B8" android:pathData="M21,48 L41,48 L39,52 L23,52 Z" />
     <path android:fillColor="#D99B35" android:pathData="M21,55 L41,55 L39,60 L23,60 Z" />
-    <circle android:fillColor="#FFF0B8" android:cx="21" android:cy="33" android:radius="2" />
-    <circle android:fillColor="#FFF0B8" android:cx="31" android:cy="26" android:radius="2.4" />
-    <circle android:fillColor="#FFF0B8" android:cx="41" android:cy="33" android:radius="2" />
     <path android:fillColor="#F3CD78" android:pathData="M40,39 L45,39 L45,62 L52,62 L52,67 L40,67 Z" />
     <path android:fillColor="#F3CD78" android:fillType="evenOdd"
         android:pathData="M61,38 C54,38 50,43 50,52 C50,61 54,67 61,67 C68,67 72,61 72,52 C72,43 68,38 61,38 Z M61,43 C65,43 67,46 67,52 C67,58 65,62 61,62 C57,62 55,58 55,52 C55,46 57,43 61,43 Z" />
