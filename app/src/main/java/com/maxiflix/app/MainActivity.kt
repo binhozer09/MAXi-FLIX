@@ -861,75 +861,110 @@ class MainActivity : AppCompatActivity() {
               function installSelectionTracker() {
                 if (window.__maxiflixSelectionTrackerInstalled) return;
                 window.__maxiflixSelectionTrackerInstalled = true;
-                // Só considera cartões com imagem de capa; assim, cliques em servidores,
-                // botões de Play e controles do player não entram no Assistidos.
+
+                function absoluteImageUrl(value) {
+                  if (!value) return '';
+                  value = String(value).trim();
+                  if (!value || /^(data:|blob:|about:)/i.test(value) ||
+                      /transparent|placeholder|loading|spacer/i.test(value)) return '';
+                  try {
+                    const parsed = new URL(value, document.baseURI);
+                    return /^https?:$/.test(parsed.protocol) ? parsed.href : '';
+                  } catch (_) { return ''; }
+                }
+
+                function getPoster(card, clicked) {
+                  const images = [];
+                  if (clicked && clicked.tagName === 'IMG') images.push(clicked);
+                  if (card && card.tagName === 'IMG') images.push(card);
+                  if (card && card.querySelectorAll) {
+                    card.querySelectorAll('img').forEach(function(img) { images.push(img); });
+                  }
+                  for (let i = 0; i < images.length; i++) {
+                    const img = images[i];
+                    const sources = [
+                      img.currentSrc, img.getAttribute('data-src'),
+                      img.getAttribute('data-lazy-src'), img.getAttribute('data-original'),
+                      img.getAttribute('data-original-src'), img.getAttribute('data-image'),
+                      img.getAttribute('src'),
+                      img.getAttribute('srcset') &&
+                        img.getAttribute('srcset').split(',').pop().trim().split(/\s+/)[0]
+                    ];
+                    for (let j = 0; j < sources.length; j++) {
+                      const url = absoluteImageUrl(sources[j]);
+                      if (url) return url;
+                    }
+                  }
+                  let node = clicked || card;
+                  for (let depth = 0; node && depth < 7; depth++, node = node.parentElement) {
+                    let bg = '';
+                    try { bg = getComputedStyle(node).backgroundImage || ''; } catch (_) {}
+                    const matches = bg.match(/url\(["']?(.*?)["']?\)/ig) || [];
+                    for (let j = 0; j < matches.length; j++) {
+                      const raw = matches[j].replace(/^url\(["']?/, '').replace(/["']?\)$/,'');
+                      const url = absoluteImageUrl(raw);
+                      if (url) return url;
+                    }
+                  }
+                  return '';
+                }
+
                 document.addEventListener('click', function(event) {
                   try {
                     const target = event.target && event.target.nodeType === 1
                       ? event.target : event.target && event.target.parentElement;
-                    if (!target || target.closest('#maxiflix-history-overlay,button,video,audio,input,select,textarea')) return;
-                    const link = target.closest('a[href], [role="link"][href], [onclick]');
-                    if (!link) return;
-                    const image = link.querySelector('img');
+                    if (!target || target.closest('#maxiflix-history-overlay,video,audio,input,select,textarea')) return;
+
+                    // O cartão pode ser um link, botão ou elemento com data-href.
+                    let card = target.closest('a[href], [role="link"], button, [onclick], [data-href], [data-url]');
+                    if (!card) {
+                      let node = target;
+                      for (let depth = 0; node && depth < 5; depth++, node = node.parentElement) {
+                        if (node.querySelector && node.querySelector('img')) { card = node; break; }
+                      }
+                    }
+                    if (!card) return;
+
+                    const image = getPoster(card, target);
                     if (!image) return;
-                    const destination = link.href || link.getAttribute('href') || '';
+
+                    let destination = card.href || card.getAttribute('href') ||
+                      card.getAttribute('data-href') || card.getAttribute('data-url') || '';
+                    if (!destination && card.querySelector) {
+                      const innerLink = card.querySelector('a[href]');
+                      if (innerLink) destination = innerLink.href || innerLink.getAttribute('href') || '';
+                    }
+                    if (!destination) {
+                      let parent = card.parentElement;
+                      for (let depth = 0; parent && depth < 3 && !destination; depth++, parent = parent.parentElement) {
+                        const parentLink = parent.querySelector && parent.querySelector('a[href]');
+                        if (parentLink) destination = parentLink.href || parentLink.getAttribute('href') || '';
+                      }
+                    }
                     if (!destination || destination === window.location.href ||
-                        destination.indexOf('javascript:') === 0) return;
-                    const linkLabel = (link.innerText || link.textContent || '').replace(/\\s+/g, ' ').trim();
-                    if (/^(HD|SD|FULL HD|720P|1080P|SERVIDOR|SERVER|PLAY\\s*\\d*)$/i.test(linkLabel)) return;
+                        /^javascript:/i.test(destination)) return;
                     const destinationUrl = new URL(destination, window.location.href);
                     if (!/^https?:$/.test(destinationUrl.protocol) ||
                         !(destinationUrl.hostname === 'redecanais.in' ||
                           destinationUrl.hostname.endsWith('.redecanais.in')) ||
                         destinationUrl.pathname === '/' || destinationUrl.pathname === '') return;
-                    const cardText = (link.innerText || link.textContent || '').replace(/\\s+/g, ' ').trim();
-                    const imageTitle = image.getAttribute('alt') || image.getAttribute('title') ||
-                      image.getAttribute('aria-label') || '';
-                    const dataTitle = link.getAttribute('data-title') || link.getAttribute('title') ||
-                      link.getAttribute('aria-label') || '';
-                    let title = (imageTitle || dataTitle || cardText).trim();
-                    title = title.replace(/\\s+/g, ' ').slice(0, 120);
-                    if (!title || /^(assistir|play|dublado|legendado|ver filme)$/i.test(title) ||
-                        /servidor|server|play\\s*\\d+/i.test(title)) return;
-                    const candidates = [
-                      image.getAttribute('data-src'),
-                      image.getAttribute('data-lazy-src'),
-                      image.getAttribute('data-original'),
-                      image.getAttribute('data-original-src'),
-                      image.getAttribute('src'),
-                      image.currentSrc,
-                      image.src,
-                      image.getAttribute('srcset') && image.getAttribute('srcset').split(',')[0].trim().split(/\\s+/)[0]
-                    ];
-                    let poster = '';
-                    for (let i = 0; i < candidates.length; i++) {
-                      const candidate = candidates[i];
-                      if (!candidate || /^(data:|blob:|about:)/i.test(candidate) ||
-                          /transparent|placeholder|loading/i.test(candidate)) continue;
-                      try {
-                        const parsed = new URL(candidate, window.location.href);
-                        if (/^https?:$/.test(parsed.protocol)) { poster = parsed.href; break; }
-                      } catch (_) {}
-                    }
-                    if (!poster) {
-                      let node = image;
-                      for (let depth = 0; node && depth < 4; depth++, node = node.parentElement) {
-                        const bg = node && node.style ? node.style.backgroundImage : '';
-                        const match = bg && bg.match(/url\\(["']?(.*?)["']?\\)/i);
-                        if (match && match[1] && /^https?:/i.test(match[1])) { poster = match[1]; break; }
-                      }
-                    }
-                    if (!poster) return;
-                    if (/\\bHD\\b|servidor|server|assistir|play\\s*\\d*/i.test(cardText) &&
-                        cardText.length < 45) return;
+
+                    const textOf = (card.innerText || card.textContent || '')
+                      .replace(/\s+/g, ' ').trim();
+                    const img = card.querySelector ? card.querySelector('img') : null;
+                    const titleHint = (img && (img.getAttribute('alt') || img.getAttribute('title'))) ||
+                      card.getAttribute('data-title') || card.getAttribute('title') || '';
+                    const cleanText = textOf
+                      .replace(/\b(HD|SD|FULL\s*HD|720P|1080P|4K|DUBLADO|LEGENDADO|ASSISTIR|PLAY)\b/ig, ' ')
+                      .replace(/\s+/g, ' ').trim();
+                    let title = String(titleHint || cleanText).trim().slice(0, 120);
+                    if (!title || /^(HD|SD|FULL HD|720P|1080P|SERVIDOR|SERVER|PLAY)$/i.test(title)) return;
+
                     saveHistory({
                       type: 'selection',
-                      url: destination,
-                      videoUrl: '',
+                      url: destinationUrl.href,
                       title: title,
-                      poster: poster,
-                      time: 0,
-                      duration: 0,
+                      poster: image,
                       updatedAt: Date.now()
                     });
                   } catch (error) {
