@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.30"
+        default: "maxiflix-v1.8.31"
         type: string
 
 permissions:
@@ -126,7 +126,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "Salva em Assistidos apenas os filmes e séries selecionados pelo usuário. Páginas e servidores não entram no histórico. Mantém o progresso de reprodução e melhorias de estabilidade."
+              "releaseNotes": "Assistidos salva somente as capas de filmes e séries selecionadas manualmente. Limite de 10 capas, mais recentes primeiro. Não registra progresso de reprodução."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -137,7 +137,7 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.30' }}
+          name: MAXi-FLIX ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.31' }}
           tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.30' }}
           target_commitish: release/1.7.0
           generate_release_notes: true
