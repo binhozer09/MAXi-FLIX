@@ -404,21 +404,48 @@ class MainActivity : AppCompatActivity() {
                 return title.slice(0, 120);
               }
 
-              function recordCurrentPage() {
-                try {
-                  const url = window.location.href;
-                  const path = window.location.pathname || '/';
-                  if (path === '/' || path === '' || brandPattern.test(currentTitle())) return;
-                  if (!/^https?:$/.test(window.location.protocol)) return;
-                  const previous = readHistory().find(function(item) { return item.url === url; }) || {};
-                  saveHistory({
-                    url: url,
-                    title: currentTitle(),
-                    time: previous.time || 0,
-                    duration: previous.duration || 0,
-                    updatedAt: Date.now()
-                  });
-                } catch (e) {}
+              // O histórico só recebe um título quando a pessoa toca em um filme/série no catálogo.
+              // Não registrar páginas visitadas automaticamente evita salvar páginas de categorias e anúncios.
+              function recordCurrentPage() {}
+
+              function installSelectionTracker() {
+                if (window.__maxiflixSelectionTrackerInstalled) return;
+                window.__maxiflixSelectionTrackerInstalled = true;
+
+                document.addEventListener('click', function(event) {
+                  try {
+                    const target = event.target && event.target.nodeType === 1
+                      ? event.target : event.target && event.target.parentElement;
+                    const link = target && target.closest ? target.closest('a[href]') : null;
+                    if (!link) return;
+
+                    const destination = new URL(link.href, window.location.href);
+                    if (!/^https?:$/.test(destination.protocol) ||
+                        !(destination.hostname === window.location.hostname ||
+                          destination.hostname.endsWith('.' + window.location.hostname))) return;
+                    if (destination.pathname === '/' || destination.pathname === '') return;
+
+                    const image = link.querySelector('img');
+                    let title = link.getAttribute('aria-label') ||
+                      link.getAttribute('title') ||
+                      (image && (image.getAttribute('alt') || image.getAttribute('title'))) ||
+                      (link.innerText || link.textContent || '');
+                    title = (title || '').replace(/\\s+/g, ' ').trim();
+                    if (!title || brandPattern.test(title)) {
+                      title = decodeURIComponent(destination.pathname.split('/').filter(Boolean).pop() || '')
+                        .replace(/[-_]+/g, ' ').trim();
+                    }
+                    if (!title || brandPattern.test(title)) return;
+
+                    saveHistory({
+                      url: destination.href,
+                      title: title.slice(0, 120),
+                      time: 0,
+                      duration: 0,
+                      updatedAt: Date.now()
+                    });
+                  } catch (e) {}
+                }, true);
               }
 
               function formatTime(seconds) {
@@ -602,7 +629,7 @@ class MainActivity : AppCompatActivity() {
               }
 
               function start() {
-                recordCurrentPage();
+                installSelectionTracker();
                 replaceBranding();
                 installTracker();
                 updateResumeButton();
@@ -619,7 +646,6 @@ class MainActivity : AppCompatActivity() {
                 if (!window.__maxiflixResumeTimer) {
                   window.__maxiflixResumeTimer = setInterval(function() {
                     installTracker();
-                    recordCurrentPage();
                   }, 2000);
                 }
               }
