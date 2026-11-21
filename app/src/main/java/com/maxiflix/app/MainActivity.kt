@@ -765,72 +765,23 @@ class MainActivity : AppCompatActivity() {
               function readHistory() {
                 try {
                   const value = JSON.parse(localStorage.getItem(historyKey) || '[]');
-                  // Aceita vídeos reproduzidos e filmes selecionados diretamente no catálogo.
+                  // Assistidos contém somente capas escolhidas manualmente no catálogo.
                   return Array.isArray(value) ? value.filter(function(entry) {
-                    return entry && (entry.type === 'video' || entry.type === 'selection') &&
-                      typeof entry.url === 'string';
-                  }) : [];
+                    return entry && entry.type === 'selection' &&
+                      typeof entry.url === 'string' && typeof entry.poster === 'string';
+                  }).slice(0, 10) : [];
                 } catch (e) { return []; }
               }
 
               function saveHistory(item) {
                 try {
+                  if (!item || item.type !== 'selection') return;
                   const list = readHistory().filter(function(entry) {
-                    return entry.url !== item.url &&
-                      (!item.videoUrl || entry.videoUrl !== item.videoUrl);
+                    return entry.url !== item.url;
                   });
                   list.unshift(item);
-                  // Seleções manuais ficam limitadas às 10 capas mais recentes.
-                  const selections = list.filter(function(entry) { return entry.type === 'selection'; }).slice(0, 10);
-                  // O histórico de reprodução continua separado e preserva o progresso.
-                  const videos = list.filter(function(entry) { return entry.type === 'video'; }).slice(0, 30);
-                  localStorage.setItem(historyKey, JSON.stringify(
-                    selections.concat(videos).sort(function(a, b) {
-                      return (b.updatedAt || 0) - (a.updatedAt || 0);
-                    })
-                  ));
+                  localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 10)));
                   updateResumeButton();
-                } catch (e) {}
-              }
-
-              function currentTitle() {
-                let title = (document.title || '').replace(/\s*[-|]\s*MAXi-FLIX.*/i, '').trim();
-                if (!title || brandPattern.test(title)) {
-                  title = document.querySelector('h1,h2,[class*="title"],[class*="name"]')?.textContent?.trim() || 'Conteúdo assistido';
-                }
-                return title.slice(0, 120);
-              }
-
-              function formatTime(seconds) {
-                seconds = Math.max(0, Math.floor(seconds || 0));
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = seconds % 60;
-                return h > 0 ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
-                  : m + ':' + String(s).padStart(2, '0');
-              }
-
-              function saveProgress(video) {
-                try {
-                  if (!video || video.dataset.maxiflixPlaybackStarted !== '1' ||
-                      !Number.isFinite(video.duration) || video.duration <= 0 ||
-                      !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
-                  const videoUrl = video.currentSrc || video.src || '';
-                  const selected = readHistory().find(function(entry) {
-                    return entry.type === 'selection' && entry.url === window.location.href;
-                  });
-                  const item = {
-                    type: 'video',
-                    url: window.location.href,
-                    videoUrl: videoUrl,
-                    title: selected && selected.title ? selected.title : currentTitle(),
-                    poster: selected && selected.poster ? selected.poster : '',
-                    time: video.currentTime,
-                    duration: video.duration,
-                    updatedAt: Date.now()
-                  };
-                  localStorage.setItem(resumeKey, JSON.stringify(item));
-                  saveHistory(item);
                 } catch (e) {}
               }
 
@@ -857,7 +808,7 @@ class MainActivity : AppCompatActivity() {
                 panel.appendChild(heading);
                 if (!list.length) {
                   const empty = document.createElement('div');
-                  empty.textContent = 'Você ainda não selecionou nenhum filme ou assistiu a algum vídeo.';
+                  empty.textContent = 'Você ainda não selecionou nenhum filme no catálogo.';
                   empty.style.cssText = 'padding:18px 8px;color:#c7cfdd;text-align:center;font-size:15px;';
                   panel.appendChild(empty);
                 }
@@ -886,9 +837,7 @@ class MainActivity : AppCompatActivity() {
                   name.style.cssText = 'padding:7px 7px 2px;font-size:12px;font-weight:700;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;';
                   card.appendChild(name);
                   const info = document.createElement('small');
-                  info.textContent = item.type === 'selection'
-                    ? 'Selecionado'
-                    : (item.time > 0 ? 'Continuar ' + formatTime(item.time) : 'Assistido');
+                  info.textContent = 'Selecionado';
                   info.style.cssText = 'display:block;padding:0 7px;color:#b9c4d5;font-size:10px;';
                   card.appendChild(info);
                   card.addEventListener('click', function() {
@@ -907,26 +856,6 @@ class MainActivity : AppCompatActivity() {
                 overlay.appendChild(panel);
                 overlay.addEventListener('click', function(event) { if (event.target === overlay) overlay.remove(); });
                 document.body.appendChild(overlay);
-              }
-
-              function resumePendingIfPossible() {
-                try {
-                  const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null');
-                  if (!pending || pending.url !== window.location.href) return;
-                  sessionStorage.removeItem(pendingKey);
-                  if (!(pending.time > 0)) return;
-                  let attempts = 0;
-                  const timer = setInterval(function() {
-                    attempts++;
-                    const video = Array.from(document.querySelectorAll('video')).find(function(v) {
-                      return Number.isFinite(v.duration) && v.duration > 0;
-                    });
-                    if (video) {
-                      try { video.currentTime = Math.min(pending.time, Math.max(0, video.duration - 2)); } catch (e) {}
-                      clearInterval(timer);
-                    } else if (attempts >= 30) clearInterval(timer);
-                  }, 500);
-                } catch (e) {}
               }
 
               function installSelectionTracker() {
@@ -1155,25 +1084,17 @@ class MainActivity : AppCompatActivity() {
               function start() {
                 replaceBranding();
                 installSelectionTracker();
-                installTracker();
                 updateResumeButton();
-                resumePendingIfPossible();
                 if (!window.__maxiflixResumeObserver && document.documentElement) {
                   // A busca é restrita ao texto e à imagem da marca; não cria camadas sobre a página.
                   window.__maxiflixResumeObserver = new MutationObserver(function() {
                     hideBranding();
                     installSelectionTracker();
-                    installTracker();
                   });
                   window.__maxiflixResumeObserver.observe(document.documentElement, {
                     childList: true, subtree: true, characterData: true,
                     attributes: true, attributeFilter: ['src', 'alt', 'title', 'aria-label']
                   });
-                }
-                if (!window.__maxiflixResumeTimer) {
-                  window.__maxiflixResumeTimer = setInterval(function() {
-                    installTracker();
-                  }, 2000);
                 }
               }
               start();
