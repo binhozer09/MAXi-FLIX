@@ -6,28 +6,23 @@
     android:viewportHeight="108">
 
     <!-- Coroa dourada -->
-    <path
-        android:fillColor="#E9B95D"
-        android:pathData="M17,43 L22,30 L29,38 L35,24 L41,38 L48,30 L53,43 L49,59 L21,59 Z" />
-    <path
-        android:fillColor="#FFF0B8"
-        android:pathData="M22,46 L48,46 L46,51 L24,51 Z" />
-    <path
-        android:fillColor="#D99B35"
-        android:pathData="M21,55 L49,55 L47,61 L23,61 Z" />
-    <circle android:fillColor="#FFF0B8" android:cx="22" android:cy="28" android:radius="2.5" />
-    <circle android:fillColor="#FFF0B8" android:cx="35" android:cy="21" android:radius="3" />
-    <circle android:fillColor="#FFF0B8" android:cx="48" android:cy="28" android:radius="2.5" />
+    <path android:fillColor="#E9B95D"
+        android:pathData="M16,44 L21,31 L27,38 L33,25 L39,38 L45,31 L50,44 L46,59 L20,59 Z" />
+    <path android:fillColor="#FFF0B8"
+        android:pathData="M21,47 L45,47 L43,52 L23,52 Z" />
+    <path android:fillColor="#D99B35"
+        android:pathData="M20,55 L46,55 L44,61 L22,61 Z" />
+    <circle android:fillColor="#FFF0B8" android:cx="21" android:cy="29" android:radius="2.4" />
+    <circle android:fillColor="#FFF0B8" android:cx="33" android:cy="22" android:radius="2.8" />
+    <circle android:fillColor="#FFF0B8" android:cx="45" android:cy="29" android:radius="2.4" />
 
-    <!-- LOKI: letras fortes e limpas, sem a linha CINEMA -->
-    <path
-        android:fillColor="#F3CD78"
-        android:pathData="M55,36 L61,36 L61,62 L72,62 L72,68 L55,68 Z" />
-    <path
-        android:fillColor="#F3CD78"
-        android:fillType="evenOdd"
-        android:pathData="M79,35 C70,35 66,41 66,52 C66,63 71,69 80,69 C89,69 94,63 94,52 C94,41 88,35 79,35 Z M80,41 C85,41 88,45 88,52 C88,59 85,63 80,63 C75,63 72,59 72,52 C72,45 75,41 80,41 Z" />
-    <path
-        android:fillColor="#F3CD78"
-        android:pathData="M96,36 L102,36 L102,68 L96,68 Z" />
+    <!-- L -->
+    <path android:fillColor="#F3CD78"
+        android:pathData="M49,37 L55,37 L55,62 L65,62 L65,68 L49,68 Z" />
+    <!-- O -->
+    <path android:fillColor="#F3CD78" android:fillType="evenOdd"
+        android:pathData="M77,36 C68,36 64,42 64,52 C64,63 69,69 78,69 C87,69 92,63 92,52 C92,42 86,36 77,36 Z M78,42 C83,42 86,45 86,52 C86,59 83,63 78,63 C73,63 70,59 70,52 C70,45 73,42 78,42 Z" />
+    <!-- K -->
+    <path android:fillColor="#F3CD78"
+        android:pathData="M94,37 L100,37 L100,49 L109,37 L116,37 L105,52 L117,68 L109,68 L100,55 L100,68 L94,68 Z" />
 </vector>
