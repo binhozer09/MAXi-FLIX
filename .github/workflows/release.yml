@@ -144,3 +144,5 @@ jobs:
           files: |
             release/MAXi-FLIX.apk
             release/update.json
+
+# LOKI CINEMA branding release trigger 1.8.34
