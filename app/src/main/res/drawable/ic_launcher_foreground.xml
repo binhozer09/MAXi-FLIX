@@ -5,31 +5,34 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- A mesma coroa dourada usada no cabeçalho do aplicativo -->
-    <group
-        android:scaleX="0.85"
-        android:scaleY="0.85"
-        android:pivotX="18"
-        android:pivotY="18"
-        android:translateX="9"
-        android:translateY="39">
-        <path
-            android:fillColor="#FFD36A"
-            android:pathData="M4,11 L10,16 L17.8,5.2 L25.8,16 L32,10.5 L29.5,27 L6.5,27 Z" />
-        <path
-            android:fillColor="#FFF0B5"
-            android:pathData="M6.5,29 L29.5,29 L28,32 L8,32 Z" />
-        <path
-            android:fillColor="#FFF0B5"
-            android:pathData="M4,8.5 C2.6,8.5 1.5,7.4 1.5,6 C1.5,4.6 2.6,3.5 4,3.5 C5.4,3.5 6.5,4.6 6.5,6 C6.5,7.4 5.4,8.5 4,8.5 Z M18,5.5 C16.6,5.5 15.5,4.4 15.5,3 C15.5,1.6 16.6,0.5 18,0.5 C19.4,0.5 20.5,1.6 20.5,3 C20.5,4.4 19.4,5.5 18,5.5 Z M32,8 C30.6,8 29.5,6.9 29.5,5.5 C29.5,4.1 30.6,3 32,3 C33.4,3 34.5,4.1 34.5,5.5 C34.5,6.9 33.4,8 32,8 Z" />
-    </group>
+    <!-- Botão de play em marca d'água, discreto sobre o fundo preto -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#66D9A441"
+        android:strokeWidth="2.4"
+        android:pathData="M54,13 A41,41 0,1 1,53.9 13 Z" />
+    <path
+        android:fillColor="#35D9A441"
+        android:pathData="M45,34 L45,74 L75,54 Z" />
 
-    <!-- LOKI reduzido para caber inteiro, sem a palavra CINEMA -->
+    <!-- Coroa do cabeçalho + LOKI, em escala menor e alinhados na mesma linha -->
     <group
-        android:scaleX="0.72"
-        android:scaleY="0.72"
-        android:pivotX="70"
-        android:pivotY="53">
+        android:scaleX="0.58"
+        android:scaleY="0.58"
+        android:pivotX="54"
+        android:pivotY="54">
+        <group android:translateY="36">
+            <path
+                android:fillColor="#FFD36A"
+                android:pathData="M4,11 L10,16 L17.8,5.2 L25.8,16 L32,10.5 L29.5,27 L6.5,27 Z" />
+            <path
+                android:fillColor="#FFF0B5"
+                android:pathData="M6.5,29 L29.5,29 L28,32 L8,32 Z" />
+            <path
+                android:fillColor="#FFF0B5"
+                android:pathData="M4,8.5 C2.6,8.5 1.5,7.4 1.5,6 C1.5,4.6 2.6,3.5 4,3.5 C5.4,3.5 6.5,4.6 6.5,6 C6.5,7.4 5.4,8.5 4,8.5 Z M18,5.5 C16.6,5.5 15.5,4.4 15.5,3 C15.5,1.6 16.6,0.5 18,0.5 C19.4,0.5 20.5,1.6 20.5,3 C20.5,4.4 19.4,5.5 18,5.5 Z M32,8 C30.6,8 29.5,6.9 29.5,5.5 C29.5,4.1 30.6,3 32,3 C33.4,3 34.5,4.1 34.5,5.5 C34.5,6.9 33.4,8 32,8 Z" />
+        </group>
+
         <path android:fillColor="#F3CD78" android:pathData="M40,39 L45,39 L45,62 L52,62 L52,67 L40,67 Z" />
         <path android:fillColor="#F3CD78" android:fillType="evenOdd"
             android:pathData="M61,38 C54,38 50,43 50,52 C50,61 54,67 61,67 C68,67 72,61 72,52 C72,43 68,38 61,38 Z M61,43 C65,43 67,46 67,52 C67,58 65,62 61,62 C57,62 55,58 55,52 C55,46 57,43 61,43 Z" />
