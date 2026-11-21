@@ -15,57 +15,85 @@
         <LinearLayout
             android:id="@+id/topBar"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="76dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="16dp"
+            android:paddingStart="15dp"
             android:paddingEnd="12dp"
-            android:background="@color/top_bar">
+            android:background="@drawable/bg_top_bar">
 
             <ImageView
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginEnd="8dp"
+                android:layout_width="43dp"
+                android:layout_height="43dp"
+                android:layout_marginEnd="10dp"
                 android:contentDescription="@string/app_name"
                 android:src="@drawable/ic_launcher_foreground" />
 
-            <TextView
-                android:id="@+id/appTitle"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/app_name"
-                android:textColor="@color/gold"
-                android:textSize="19sp"
-                android:textStyle="bold" />
+                android:orientation="vertical"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/appTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_name"
+                    android:textColor="@color/gold"
+                    android:textSize="19sp"
+                    android:fontFamily="sans"
+                    android:letterSpacing="0.045"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:text="SEU CINEMA NA PALMA DA MÃO"
+                    android:textColor="@color/subtitle_text"
+                    android:textSize="8sp"
+                    android:letterSpacing="0.12"
+                    android:textStyle="bold" />
+            </LinearLayout>
 
             <Button
                 android:id="@+id/watchedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_width="88dp"
+                android:layout_height="39dp"
                 android:minWidth="0dp"
-                android:layout_marginEnd="8dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:backgroundTint="@color/accent"
-                android:text="ASSISTIDOS"
+                android:layout_marginEnd="7dp"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:background="@drawable/bg_button_dark"
+                android:stateListAnimator="@null"
+                android:text="♡ ASSISTIDOS"
                 android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="14sp" />
+                android:textColor="@color/status_text"
+                android:textSize="10sp"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/updateButton"
-                android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_width="91dp"
+                android:layout_height="39dp"
                 android:minWidth="0dp"
-                android:paddingStart="14dp"
-                android:paddingEnd="14dp"
-                android:backgroundTint="@color/accent"
+                android:paddingStart="5dp"
+                android:paddingEnd="5dp"
+                android:background="@drawable/bg_button_accent"
+                android:stateListAnimator="@null"
                 android:text="@string/update_button"
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
-                android:textSize="14sp" />
+                android:textSize="10sp"
+                android:textStyle="bold" />
         </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/gold_divider" />
 
         <ProgressBar
             android:id="@+id/updateProgress"
@@ -81,10 +109,10 @@
             android:id="@+id/updateStatus"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingStart="12dp"
-            android:paddingEnd="12dp"
-            android:paddingTop="6dp"
-            android:paddingBottom="6dp"
+            android:paddingStart="14dp"
+            android:paddingEnd="14dp"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
             android:background="@color/top_bar"
             android:textColor="@color/status_text"
             android:textSize="12sp"
@@ -103,35 +131,39 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
-            android:paddingTop="4dp"
-            android:paddingBottom="4dp"
-            android:background="@color/top_bar">
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp"
+            android:paddingTop="9dp"
+            android:paddingBottom="9dp"
+            android:background="@drawable/bg_navigation">
 
             <Button
                 android:id="@+id/backButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="43dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="6dp"
-                android:backgroundTint="@color/accent"
-                android:text="◀️ Voltar"
+                android:background="@drawable/bg_button_dark"
+                android:stateListAnimator="@null"
+                android:text="‹   Voltar"
                 android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="15sp" />
+                android:textColor="@color/status_text"
+                android:textSize="14sp"
+                android:textStyle="bold" />
 
             <Button
                 android:id="@+id/forwardButton"
                 android:layout_width="0dp"
-                android:layout_height="48dp"
+                android:layout_height="43dp"
                 android:layout_weight="1"
                 android:layout_marginStart="6dp"
-                android:backgroundTint="@color/accent"
-                android:text="⏩ Avançar"
+                android:background="@drawable/bg_button_dark"
+                android:stateListAnimator="@null"
+                android:text="Avançar   ›"
                 android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="15sp" />
+                android:textColor="@color/status_text"
+                android:textSize="14sp"
+                android:textStyle="bold" />
         </LinearLayout>
     </LinearLayout>
 
