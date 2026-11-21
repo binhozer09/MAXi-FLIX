@@ -5,18 +5,20 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <!-- Coroa dourada -->
-    <path android:fillColor="#E9B95D" android:pathData="M16,44 L21,31 L27,38 L33,25 L39,38 L45,31 L50,44 L46,59 L20,59 Z" />
-    <path android:fillColor="#FFF0B8" android:pathData="M21,47 L45,47 L43,52 L23,52 Z" />
-    <path android:fillColor="#D99B35" android:pathData="M20,55 L46,55 L44,61 L22,61 Z" />
-    <circle android:fillColor="#FFF0B8" android:cx="21" android:cy="29" android:radius="2.4" />
-    <circle android:fillColor="#FFF0B8" android:cx="33" android:cy="22" android:radius="2.8" />
-    <circle android:fillColor="#FFF0B8" android:cx="45" android:cy="29" android:radius="2.4" />
+    <path android:fillColor="#E9B95D" android:pathData="M14,44 L18,32 L24,39 L29,26 L34,39 L40,32 L44,44 L41,58 L17,58 Z" />
+    <path android:fillColor="#FFF0B8" android:pathData="M18,47 L40,47 L38,52 L20,52 Z" />
+    <path android:fillColor="#D99B35" android:pathData="M17,55 L41,55 L39,60 L19,60 Z" />
+    <circle android:fillColor="#FFF0B8" android:cx="18" android:cy="30" android:radius="2.2" />
+    <circle android:fillColor="#FFF0B8" android:cx="29" android:cy="23" android:radius="2.6" />
+    <circle android:fillColor="#FFF0B8" android:cx="40" android:cy="30" android:radius="2.2" />
 
     <!-- L -->
-    <path android:fillColor="#F3CD78" android:pathData="M42,37 L48,37 L48,62 L57,62 L57,68 L42,68 Z" />
+    <path android:fillColor="#F3CD78" android:pathData="M43,38 L48,38 L48,62 L57,62 L57,67 L43,67 Z" />
     <!-- O -->
     <path android:fillColor="#F3CD78" android:fillType="evenOdd"
-        android:pathData="M66,36 C58,36 54,42 54,52 C54,62 58,69 67,69 C75,69 80,62 80,52 C80,42 75,36 66,36 Z M67,42 C72,42 74,46 74,52 C74,59 72,63 67,63 C62,63 60,59 60,52 C60,46 62,42 67,42 Z" />
+        android:pathData="M66,37 C58,37 54,43 54,52 C54,62 58,68 66,68 C74,68 78,62 78,52 C78,43 74,37 66,37 Z M66,42 C71,42 73,46 73,52 C73,58 71,63 66,63 C61,63 59,58 59,52 C59,46 61,42 66,42 Z" />
     <!-- K -->
-    <path android:fillColor="#F3CD78" android:pathData="M83,37 L89,37 L89,49 L98,37 L105,37 L94,52 L106,68 L98,68 L89,55 L89,68 L83,68 Z" />
+    <path android:fillColor="#F3CD78" android:pathData="M81,38 L86,38 L86,49 L94,38 L100,38 L90,52 L101,67 L95,67 L86,55 L86,67 L81,67 Z" />
+    <!-- I -->
+    <path android:fillColor="#F3CD78" android:pathData="M104,38 L109,38 L109,67 L104,67 Z" />
 </vector>
