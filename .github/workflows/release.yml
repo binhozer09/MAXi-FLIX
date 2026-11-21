@@ -1,4 +1,4 @@
-name: Publish LOKI CINEMA update # build 1.8.40
+name: Publish LOKI CINEMA update # build 1.8.41
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
       tag_name:
         description: "Tag da versão que será publicada"
         required: true
-        default: "maxiflix-v1.8.40"
+        default: "maxiflix-v1.8.41"
         type: string
 
 permissions:
@@ -126,7 +126,7 @@ jobs:
               "apkFile": "MAXi-FLIX.apk",
               "apkSha256": digest,
               "apkSizeBytes": apk.stat().st_size,
-              "releaseNotes": "LOKI CINEMA 1.8.40: interface premium renovada em preto, vermelho e dourado; cabeçalho com identidade visual, botões redesenhados e navegação aprimorada. Recursos de filmes, DNS Cloudflare, Assistidos e atualização foram preservados."
+              "releaseNotes": "LOKI CINEMA 1.8.41: interface premium renovada em preto, vermelho e dourado; cabeçalho com identidade visual, botões redesenhados e navegação aprimorada. Recursos de filmes, DNS Cloudflare, Assistidos e atualização foram preservados."
           }
           pathlib.Path("release/update.json").write_text(
               json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -137,12 +137,12 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: LOKI CINEMA ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.40' }}
-          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.40' }}
+          name: LOKI CINEMA ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.41' }}
+          tag_name: ${{ inputs.tag_name || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'maxiflix-v1.8.41' }}
           target_commitish: release/1.7.0
           generate_release_notes: true
           files: |
             release/MAXi-FLIX.apk
             release/update.json
 
-# LOKI CINEMA branding release trigger 1.8.40
+# LOKI CINEMA branding release trigger 1.8.41
