@@ -5,44 +5,29 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Coroa dourada simplificada e legível em tamanhos pequenos -->
+    <!-- Coroa dourada -->
     <path
         android:fillColor="#E9B95D"
-        android:pathData="M16,43 L21,29 L29,37 L35,23 L41,37 L49,29 L54,43 L50,61 L20,61 Z" />
+        android:pathData="M17,43 L22,30 L29,38 L35,24 L41,38 L48,30 L53,43 L49,59 L21,59 Z" />
     <path
         android:fillColor="#FFF0B8"
-        android:pathData="M21,46 L49,46 L47,52 L23,52 Z" />
+        android:pathData="M22,46 L48,46 L46,51 L24,51 Z" />
     <path
         android:fillColor="#D99B35"
-        android:pathData="M20,56 L50,56 L48,62 L22,62 Z" />
-    <circle
-        android:fillColor="#FFF0B8"
-        android:cx="21"
-        android:cy="27"
-        android:radius="3" />
-    <circle
-        android:fillColor="#FFF0B8"
-        android:cx="35"
-        android:cy="20"
-        android:radius="3.4" />
-    <circle
-        android:fillColor="#FFF0B8"
-        android:cx="49"
-        android:cy="27"
-        android:radius="3" />
+        android:pathData="M21,55 L49,55 L47,61 L23,61 Z" />
+    <circle android:fillColor="#FFF0B8" android:cx="22" android:cy="28" android:radius="2.5" />
+    <circle android:fillColor="#FFF0B8" android:cx="35" android:cy="21" android:radius="3" />
+    <circle android:fillColor="#FFF0B8" android:cx="48" android:cy="28" android:radius="2.5" />
 
-    <!-- LOKI em letras sólidas, desenhadas para leitura no launcher -->
+    <!-- LOKI: letras fortes e limpas, sem a linha CINEMA -->
     <path
         android:fillColor="#F3CD78"
-        android:pathData="M58,34 L65,34 L65,61 L79,61 L79,68 L58,68 Z" />
+        android:pathData="M55,36 L61,36 L61,62 L72,62 L72,68 L55,68 Z" />
     <path
         android:fillColor="#F3CD78"
         android:fillType="evenOdd"
-        android:pathData="M91,33 C81,33 76,40 76,51 C76,62 82,69 92,69 C102,69 107,62 107,51 C107,40 101,33 91,33 Z M91,40 C97,40 100,44 100,51 C100,58 97,62 92,62 C86,62 83,58 83,51 C83,44 86,40 91,40 Z" />
+        android:pathData="M79,35 C70,35 66,41 66,52 C66,63 71,69 80,69 C89,69 94,63 94,52 C94,41 88,35 79,35 Z M80,41 C85,41 88,45 88,52 C88,59 85,63 80,63 C75,63 72,59 72,52 C72,45 75,41 80,41 Z" />
     <path
         android:fillColor="#F3CD78"
-        android:pathData="M14,0" />
-    <path
-        android:fillColor="#F3CD78"
-        android:pathData="M14,0" />
+        android:pathData="M96,36 L102,36 L102,68 L96,68 Z" />
 </vector>
