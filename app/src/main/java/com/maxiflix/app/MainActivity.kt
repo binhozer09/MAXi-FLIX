@@ -866,47 +866,63 @@ class MainActivity : AppCompatActivity() {
                   if (!value) return '';
                   value = String(value).trim();
                   if (!value || /^(data:|blob:|about:)/i.test(value) ||
-                      /transparent|placeholder|loading|spacer/i.test(value)) return '';
+                      /transparent|placeholder|loading|spacer|pixel\.gif/i.test(value)) return '';
                   try {
                     const parsed = new URL(value, document.baseURI);
                     return /^https?:$/.test(parsed.protocol) ? parsed.href : '';
                   } catch (_) { return ''; }
                 }
 
-                function getPoster(card, clicked) {
-                  const images = [];
-                  if (clicked && clicked.tagName === 'IMG') images.push(clicked);
-                  if (card && card.tagName === 'IMG') images.push(card);
-                  if (card && card.querySelectorAll) {
-                    card.querySelectorAll('img').forEach(function(img) { images.push(img); });
-                  }
-                  for (let i = 0; i < images.length; i++) {
-                    const img = images[i];
-                    const sources = [
-                      img.currentSrc, img.getAttribute('data-src'),
-                      img.getAttribute('data-lazy-src'), img.getAttribute('data-original'),
-                      img.getAttribute('data-original-src'), img.getAttribute('data-image'),
-                      img.getAttribute('src'),
-                      img.getAttribute('srcset') &&
-                        img.getAttribute('srcset').split(',').pop().trim().split(/\s+/)[0]
-                    ];
-                    for (let j = 0; j < sources.length; j++) {
-                      const url = absoluteImageUrl(sources[j]);
-                      if (url) return url;
-                    }
-                  }
-                  let node = clicked || card;
-                  for (let depth = 0; node && depth < 7; depth++, node = node.parentElement) {
-                    let bg = '';
-                    try { bg = getComputedStyle(node).backgroundImage || ''; } catch (_) {}
-                    const matches = bg.match(/url\(["']?(.*?)["']?\)/ig) || [];
-                    for (let j = 0; j < matches.length; j++) {
-                      const raw = matches[j].replace(/^url\(["']?/, '').replace(/["']?\)$/,'');
-                      const url = absoluteImageUrl(raw);
-                      if (url) return url;
-                    }
+                function imageUrl(img) {
+                  if (!img) return '';
+                  const sources = [
+                    img.currentSrc, img.getAttribute('data-src'),
+                    img.getAttribute('data-lazy-src'), img.getAttribute('data-original'),
+                    img.getAttribute('data-original-src'), img.getAttribute('data-image'),
+                    img.getAttribute('data-lazy'), img.getAttribute('src'),
+                    img.getAttribute('srcset') &&
+                      img.getAttribute('srcset').split(',').pop().trim().split(/\\s+/)[0]
+                  ];
+                  for (let i = 0; i < sources.length; i++) {
+                    const url = absoluteImageUrl(sources[i]);
+                    if (url) return url;
                   }
                   return '';
+                }
+
+                function findPosterContext(target) {
+                  let node = target;
+                  for (let depth = 0; node && depth < 7; depth++, node = node.parentElement) {
+                    const images = [];
+                    if (node.tagName === 'IMG') images.push(node);
+                    if (node.querySelectorAll) {
+                      node.querySelectorAll('img').forEach(function(img) { images.push(img); });
+                    }
+                    for (let i = 0; i < images.length; i++) {
+                      const img = images[i];
+                      const rect = img.getBoundingClientRect();
+                      const url = imageUrl(img);
+                      if (!url || rect.width < 55 || rect.height < 65) continue;
+                      const ratio = rect.width / Math.max(1, rect.height);
+                      if (ratio < 0.35 || ratio > 1.35) continue;
+                      return { image: url, img: img, card: node };
+                    }
+                  }
+                  // Capas implementadas como background-image em cartões.
+                  node = target;
+                  for (let depth = 0; node && depth < 6; depth++, node = node.parentElement) {
+                    let bg = '';
+                    try { bg = getComputedStyle(node).backgroundImage || ''; } catch (_) {}
+                    const match = bg.match(/url\\(["']?(.*?)["']?\\)/i);
+                    if (match && match[1]) {
+                      const url = absoluteImageUrl(match[1]);
+                      const rect = node.getBoundingClientRect();
+                      if (url && rect.width >= 70 && rect.height >= 90) {
+                        return { image: url, img: null, card: node };
+                      }
+                    }
+                  }
+                  return null;
                 }
 
                 document.addEventListener('click', function(event) {
@@ -915,31 +931,24 @@ class MainActivity : AppCompatActivity() {
                       ? event.target : event.target && event.target.parentElement;
                     if (!target || target.closest('#maxiflix-history-overlay,video,audio,input,select,textarea')) return;
 
-                    // O cartão pode ser um link, botão ou elemento com data-href.
-                    let card = target.closest('a[href], [role="link"], button, [onclick], [data-href], [data-url]');
-                    if (!card) {
-                      let node = target;
-                      for (let depth = 0; node && depth < 5; depth++, node = node.parentElement) {
-                        if (node.querySelector && node.querySelector('img')) { card = node; break; }
+                    // A seleção é vinculada à capa, nunca ao botão HD/SD do servidor.
+                    const poster = findPosterContext(target);
+                    if (!poster) return;
+                    const imgLink = poster.img && poster.img.closest('a[href]');
+                    let destination = imgLink && (imgLink.href || imgLink.getAttribute('href'));
+                    const card = poster.card;
+                    if (!destination && card) {
+                      const ownLink = card.matches && card.matches('a[href]') ? card : null;
+                      const innerLink = ownLink || (card.querySelector && card.querySelector('a[href]'));
+                      destination = innerLink && (innerLink.href || innerLink.getAttribute('href'));
+                      if (!destination && card.getAttribute) {
+                        destination = card.getAttribute('data-href') ||
+                          card.getAttribute('data-url') || '';
                       }
-                    }
-                    if (!card) return;
-
-                    const image = getPoster(card, target);
-                    if (!image) return;
-
-                    let destination = card.href || card.getAttribute('href') ||
-                      card.getAttribute('data-href') || card.getAttribute('data-url') || '';
-                    if (!destination && card.querySelector) {
-                      const innerLink = card.querySelector('a[href]');
-                      if (innerLink) destination = innerLink.href || innerLink.getAttribute('href') || '';
                     }
                     if (!destination) {
-                      let parent = card.parentElement;
-                      for (let depth = 0; parent && depth < 3 && !destination; depth++, parent = parent.parentElement) {
-                        const parentLink = parent.querySelector && parent.querySelector('a[href]');
-                        if (parentLink) destination = parentLink.href || parentLink.getAttribute('href') || '';
-                      }
+                      const nearestLink = target.closest('a[href]');
+                      destination = nearestLink && (nearestLink.href || nearestLink.getAttribute('href'));
                     }
                     if (!destination || destination === window.location.href ||
                         /^javascript:/i.test(destination)) return;
@@ -949,24 +958,28 @@ class MainActivity : AppCompatActivity() {
                           destinationUrl.hostname.endsWith('.redecanais.in')) ||
                         destinationUrl.pathname === '/' || destinationUrl.pathname === '') return;
 
-                    const textOf = (card.innerText || card.textContent || '')
-                      .replace(/\s+/g, ' ').trim();
-                    const img = card.querySelector ? card.querySelector('img') : null;
-                    const titleHint = (img && (img.getAttribute('alt') || img.getAttribute('title'))) ||
-                      card.getAttribute('data-title') || card.getAttribute('title') || '';
+                    const img = poster.img;
+                    const titleHint = (img && (img.getAttribute('alt') || img.getAttribute('title') ||
+                      img.getAttribute('data-title'))) ||
+                      (card && (card.getAttribute('data-title') || card.getAttribute('title'))) || '';
+                    const textOf = (card && (card.innerText || card.textContent) || '')
+                      .replace(/\\s+/g, ' ').trim();
                     const cleanText = textOf
-                      .replace(/\b(HD|SD|FULL\s*HD|720P|1080P|4K|DUBLADO|LEGENDADO|ASSISTIR|PLAY)\b/ig, ' ')
-                      .replace(/\s+/g, ' ').trim();
-                    let title = String(titleHint || cleanText).trim().slice(0, 120);
+                      .replace(/\\b(HD|SD|FULL\\s*HD|720P|1080P|4K|DUBLADO|LEGENDADO|ASSISTIR|PLAY|SERVIDOR|SERVER)\\b/ig, ' ')
+                      .replace(/\\s+/g, ' ').trim();
+                    const title = String(titleHint || cleanText).trim().slice(0, 120);
                     if (!title || /^(HD|SD|FULL HD|720P|1080P|SERVIDOR|SERVER|PLAY)$/i.test(title)) return;
 
                     saveHistory({
                       type: 'selection',
                       url: destinationUrl.href,
                       title: title,
-                      poster: image,
+                      poster: poster.image,
                       updatedAt: Date.now()
                     });
+                    console.log('MAXIFLIX_SELECTION_SAVED ' + JSON.stringify({
+                      title: title, poster: poster.image, url: destinationUrl.href
+                    }).slice(0, 700));
                   } catch (error) {
                     console.log('MAXIFLIX_SELECTION_TRACK_ERROR ' +
                       String(error && error.message || error).slice(0, 140));
