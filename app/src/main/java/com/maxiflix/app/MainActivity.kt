@@ -933,6 +933,11 @@ class MainActivity : AppCompatActivity() {
                     const destination = link.href || link.getAttribute('href') || '';
                     if (!destination || destination === window.location.href ||
                         destination.indexOf('javascript:') === 0) return;
+                    const destinationUrl = new URL(destination, window.location.href);
+                    if (!/^https?:$/.test(destinationUrl.protocol) ||
+                        !(destinationUrl.hostname === 'redecanais.in' ||
+                          destinationUrl.hostname.endsWith('.redecanais.in')) ||
+                        destinationUrl.pathname === '/' || destinationUrl.pathname === '') return;
                     const cardText = (link.innerText || link.textContent || '').replace(/\\s+/g, ' ').trim();
                     const imageTitle = image.getAttribute('alt') || image.getAttribute('title') ||
                       image.getAttribute('aria-label') || '';
