@@ -421,11 +421,14 @@ class MainActivity : AppCompatActivity() {
 
                     const destination = new URL(link.href, window.location.href);
                     if (!/^https?:$/.test(destination.protocol) ||
-                        !(destination.hostname === window.location.hostname ||
-                          destination.hostname.endsWith('.' + window.location.hostname))) return;
+                        !(destination.hostname === 'redecanais.in' ||
+                          destination.hostname.endsWith('.redecanais.in'))) return;
                     if (destination.pathname === '/' || destination.pathname === '') return;
 
                     const image = link.querySelector('img');
+                    const cardHint = ((link.className || '') + ' ' +
+                      (link.parentElement && link.parentElement.className || '')).toLowerCase();
+                    if (!image && !/poster|filme|movie|serie|card|item/.test(cardHint)) return;
                     let title = link.getAttribute('aria-label') ||
                       link.getAttribute('title') ||
                       (image && (image.getAttribute('alt') || image.getAttribute('title'))) ||
