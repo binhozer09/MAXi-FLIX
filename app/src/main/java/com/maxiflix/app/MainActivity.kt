@@ -30,6 +30,7 @@ import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var fullscreenContainer: FrameLayout
     private lateinit var siteWeb: WebView
     private lateinit var updateButton: Button
+    private lateinit var castButton: ImageButton
     private lateinit var watchedButton: Button
     private lateinit var updateProgress: ProgressBar
     private lateinit var updateStatus: TextView
@@ -217,6 +219,7 @@ class MainActivity : AppCompatActivity() {
         fullscreenContainer = findViewById(R.id.fullscreenContainer)
         siteWeb = findViewById(R.id.siteWeb)
         updateButton = findViewById(R.id.updateButton)
+        castButton = findViewById(R.id.castButton)
         watchedButton = findViewById(R.id.watchedButton)
         updateProgress = findViewById(R.id.updateProgress)
         updateStatus = findViewById(R.id.updateStatus)
@@ -230,6 +233,8 @@ class MainActivity : AppCompatActivity() {
             if (siteWeb.canGoForward()) siteWeb.goForward()
         }
         updateNavigationButtons()
+
+        castButton.setOnClickListener { openNativeScreenCastingSettings() }
 
         cleanupInstalledUpdate()
         configureWebView()
@@ -256,6 +261,19 @@ class MainActivity : AppCompatActivity() {
         // O WebView só começa a navegar depois que o proxy local DoH estiver ativo.
         // Nenhum VpnService ou permissão de VPN é iniciado neste fluxo experimental.
         startInAppDnsProtection()
+    }
+
+    private fun openNativeScreenCastingSettings() {
+        try {
+            startActivity(Intent(Settings.ACTION_CAST_SETTINGS))
+        } catch (error: Exception) {
+            Log.w(TAG, "A tela nativa de espelhamento não está disponível neste Android", error)
+            Toast.makeText(
+                this,
+                "O Android deste aparelho não disponibilizou a tela de espelhamento.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun startInAppDnsProtection() {
