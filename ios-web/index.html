@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#09090f"><meta name="description" content="LOKI CINEMA — experiência de cinema no seu iPhone.">
+<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>LOKI CINEMA</title>
+<style>
+:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#09090f;color:#f8f8fb}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#332044 0,transparent 55%),#09090f}
+header{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #ffffff16;background:#09090fdd;position:sticky;top:0;z-index:2;backdrop-filter:blur(14px)}
+.brand{font-size:21px;font-weight:900;letter-spacing:1.5px}.brand span{color:#c084fc}.pill{border:1px solid #ffffff25;color:#ddd6fe;border-radius:99px;padding:7px 11px;font-size:11px}
+main{max-width:960px;margin:auto;padding:30px 16px 50px}.hero{padding:24px 4px 20px}.eyebrow{color:#c084fc;font-size:11px;font-weight:800;letter-spacing:2px}.hero h1{font-size:clamp(28px,7vw,44px);line-height:1.05;margin:10px 0}.hero p{color:#aaa7b5;line-height:1.55;max-width:580px;font-size:14px}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.btn{border:0;border-radius:12px;padding:13px 16px;font-weight:750;font-size:13px;cursor:pointer}.primary{background:#a855f7;color:white}.secondary{background:#ffffff12;color:#f4eaff;border:1px solid #ffffff20}
+.viewer{border:1px solid #ffffff22;border-radius:18px;overflow:hidden;background:#11111a;box-shadow:0 20px 80px #0008}.viewerbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;color:#c9c5d3;font-size:12px;border-bottom:1px solid #ffffff15}.framewrap{height:min(68vh,680px);min-height:420px;background:#000;position:relative}.framewrap iframe{width:100%;height:100%;border:0;background:#000}.fallback{position:absolute;inset:0;display:none;place-content:center;text-align:center;padding:25px;background:#101018}.fallback p{color:#aaa7b5;line-height:1.5;font-size:13px}.fallback a{color:#d8b4fe}.note{font-size:12px;color:#898594;line-height:1.55;margin:16px 4px}.install{display:none}.footer{color:#777382;text-align:center;font-size:11px;padding:25px 0}
+@media(max-width:560px){main{padding-top:18px}.framewrap{height:68vh;min-height:380px}.hero{padding-top:20px}}
+</style>
+</head>
+<body>
+<header><div class="brand">LOKI <span>CINEMA</span></div><div class="pill">VERSÃO IPHONE</div></header>
+<main>
+<section class="hero"><div class="eyebrow">SUA EXPERIÊNCIA DE CINEMA</div><h1>LOKI CINEMA</h1><p>Acesse pelo Safari e adicione à tela inicial do iPhone para abrir como um aplicativo.</p>
+<div class="actions"><button class="btn primary" id="openExternal">Abrir catálogo</button><button class="btn secondary install" id="installBtn">Instalar no iPhone</button><button class="btn secondary" id="reloadBtn">Recarregar</button></div>
+</section>
+<section class="viewer"><div class="viewerbar"><span>CATÁLOGO</span><span id="status">Carregando site…</span></div>
+<div class="framewrap"><iframe id="catalog" title="Catálogo LOKI CINEMA" src="https://www18.redecanais.in/" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+<div class="fallback" id="fallback"><div><strong>O catálogo não permitiu abrir dentro desta página.</strong><p>Isso pode acontecer por uma proteção do próprio site. Use o botão abaixo para abrir diretamente no Safari.</p><a href="https://www18.redecanais.in/" target="_blank" rel="noopener">Abrir catálogo em nova página</a></div></div></div></section>
+<p class="note">Compatibilidade: alguns sites bloqueiam a exibição incorporada no Safari. Se o catálogo não aparecer, abra-o diretamente. A reprodução e os recursos disponíveis dependem do site de origem.</p>
+<div class="footer">LOKI CINEMA · Experiência web independente</div>
+</main>
+<script>
+const frame=document.getElementById('catalog'),status=document.getElementById('status'),fallback=document.getElementById('fallback');
+frame.addEventListener('load',()=>{status.textContent='Site carregado';});
+document.getElementById('openExternal').addEventListener('click',()=>window.open('https://www18.redecanais.in/','_blank','noopener'));
+document.getElementById('reloadBtn').addEventListener('click',()=>{status.textContent='Recarregando…';frame.src='https://www18.redecanais.in/';fallback.style.display='none';});
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+let deferredPrompt;const install=document.getElementById('installBtn');
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;install.style.display='inline-block';});
+install.addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;});
+if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.navigator.standalone){status.textContent='No iPhone: use Compartilhar → Adicionar à Tela de Início';}
+</script>
+</body></html>
