@@ -406,8 +406,19 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if browser.watched.isEmpty {
-                    ContentUnavailableView("Nenhum conteúdo assistido", systemImage: "clock.arrow.circlepath",
-                                           description: Text("Os filmes e episódios que você abrir aparecerão aqui."))
+                    VStack(spacing: 12) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 34))
+                            .foregroundStyle(LokiPalette.gold)
+                        Text("Nenhum conteúdo assistido")
+                            .font(.headline)
+                        Text("Os filmes e episódios que você abrir aparecerão aqui.")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding()
                 } else {
                     List(browser.watched) { entry in
                         Button {
@@ -431,10 +442,10 @@ struct ContentView: View {
             .navigationTitle("ASSISTIDOS")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .navigationBarLeading) {
                     Button("Limpar") { browser.removeHistory() }.disabled(browser.watched.isEmpty)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Fechar") { showingHistory = false }
                 }
             }
