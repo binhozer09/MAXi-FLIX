@@ -1,10 +1,16 @@
 {
+  "id": "/",
   "name": "LOKI CINEMA",
-  "short_name": "LOKI CINEMA",
-  "description": "Experiência web do LOKI CINEMA",
+  "short_name": "LOKI",
+  "description": "LOKI CINEMA para iPhone",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#09090f",
-  "theme_color": "#09090f",
-  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+  "display_override": ["standalone"],
+  "orientation": "any",
+  "background_color": "#08080d",
+  "theme_color": "#09090d",
+  "icons": [
+    {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}
+  ]
 }
