@@ -132,7 +132,7 @@ private struct CatalogWebView: UIViewRepresentable {
 }
 
 private struct WatchHistoryView: View {
-    weak var webView: WKWebView?
+    var webView: WKWebView?
 
     var body: some View {
         NavigationStack {
