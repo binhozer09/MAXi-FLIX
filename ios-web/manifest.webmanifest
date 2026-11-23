@@ -1,0 +1,10 @@
+{
+  "name": "LOKI CINEMA",
+  "short_name": "LOKI CINEMA",
+  "description": "Experiência web do LOKI CINEMA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090f",
+  "theme_color": "#09090f",
+  "icons": [{"src":"/icon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]
+}
