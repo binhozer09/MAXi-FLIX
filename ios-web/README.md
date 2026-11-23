@@ -1,22 +1,21 @@
 # LOKI CINEMA — PWA para iPhone
 
-Esta pasta contém a experiência web independente para iPhone. Nenhum arquivo Android é modificado.
+Esta pasta contém a versão web independente para iPhone. O trabalho fica isolado em `ios-web/`; os arquivos Android não são alterados.
 
-## Comportamento implementado
-- Página inicial própria LOKI CINEMA, sem iframe do catálogo.
-- O botão **ABRIR LOKI CINEMA** navega diretamente para o endereço de catálogo usado pelo WebView Android: `https://www18.redecanais.in/`.
-- Instruções de instalação pelo Safari: Compartilhar → Adicionar à Tela de Início.
-- Ao abrir a PWA instalada em modo standalone, os controles de instalação ficam ocultos.
-- Service worker atualiza o cache do shell e mantém a página inicial disponível offline.
+## Comportamento
 
-## Limites técnicos que não podem ser ocultados
-O Android original é um aplicativo nativo com Android WebView. Ele abre o catálogo remoto e injeta controles/ajustes próprios, gerencia cookies e usa um serviço VPN local por aplicativo para encaminhar consultas DNS UDP/53 aos resolvedores Cloudflare. Uma PWA executada no Safari não pode:
-- controlar ou injetar scripts no site remoto após navegar para outro domínio;
-- compartilhar automaticamente o cookie jar do Safari como um WebView nativo;
-- interceptar tráfego DNS nem criar uma VPN;
-- garantir reprodução de mídia que o site remoto não suporte no Safari.
+- Abre o catálogo `https://www18.redecanais.in/` dentro de um iframe na própria interface da PWA.
+- Não usa `window.location`, links externos nem redirecionamento automático para o Safari.
+- O botão **ATUALIZAR** recarrega o catálogo dentro da mesma tela.
+- O manifest usa `display: standalone` e o service worker mantém o shell da PWA em cache.
+- No iPhone, abra o endereço da PWA no Safari uma vez e use Compartilhar → Adicionar à Tela de Início. Depois, abra pelo ícone.
 
-A VPN equivalente exige um aplicativo iOS nativo com Network Extension, entitlement Apple, assinatura e autorização do usuário. Ela não está implementada nesta PWA. O catálogo e os vídeos dependem do serviço remoto e de sua compatibilidade com Safari.
+## Limite importante
+
+O site remoto pode enviar cabeçalhos `X-Frame-Options` ou uma política CSP `frame-ancestors` que proíbam sua exibição dentro de iframe. Uma PWA não pode remover nem contornar essa política do servidor. Se o catálogo bloquear a incorporação, ele não será exibido nesta tela; a PWA continuará aberta e não redirecionará automaticamente para o Safari.
+
+Como o catálogo é de outro domínio, a PWA também não pode ler o conteúdo do player, controlar o histórico interno do site ou injetar scripts nele. Por isso, recursos nativos do Android como histórico de reprodução e bloqueio de anúncios não podem ser prometidos nesta versão web.
 
 ## Publicação
-Site estático. Configure a raiz do projeto Vercel como `ios-web`. O domínio antigo pode continuar servindo um deployment anterior até que esta branch seja selecionada/publicada no projeto Vercel.
+
+Site estático, sem etapa de build. Configure a raiz do projeto Vercel como `ios-web` e publique a branch `web/ios-pwa`.
