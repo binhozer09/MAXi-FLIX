@@ -245,9 +245,13 @@ private struct WatchHistoryView: View {
         NavigationStack {
             Group {
                 if items.isEmpty {
-                    ContentUnavailableView("Nenhum assistido ainda",
-                                           systemImage: "clock",
-                                           description: Text("Os filmes e séries escolhidos no catálogo aparecerão aqui."))
+                    VStack(spacing: 10) {
+                        Image(systemName: "clock").font(.system(size: 34)).foregroundStyle(.secondary)
+                        Text("Nenhum assistido ainda").font(.headline)
+                        Text("Os filmes e séries escolhidos no catálogo aparecerão aqui.")
+                            .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     List(items) { item in
                         Button { onSelect(item) } label: {
