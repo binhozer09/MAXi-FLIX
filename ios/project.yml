@@ -1,0 +1,35 @@
+name: LOKICINEMA
+options:
+  bundleIdPrefix: com.binhozer09
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "16.0"
+    TARGETED_DEVICE_FAMILY: "1"
+    INFOPLIST_KEY_CFBundleDisplayName: "LOKI CINEMA"
+    INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+    INFOPLIST_KEY_UIUserInterfaceStyle: "Dark"
+    GENERATE_INFOPLIST_FILE: "YES"
+targets:
+  LOKICINEMA:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.binhozer09.lokicinema
+        PRODUCT_NAME: "LOKI CINEMA"
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: "NO"
+        CODE_SIGN_STYLE: Automatic
+        SWIFT_EMIT_LOC_STRINGS: "YES"
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: "LOKI CINEMA"
+        UILaunchScreen: {}
+        UIUserInterfaceStyle: Dark
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoads: false
