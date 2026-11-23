@@ -1,0 +1,23 @@
+name: iOS build
+
+on:
+  push:
+    branches:
+      - ios/native-port
+    paths:
+      - "ios-native/**"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec ios-native/project.yml --project ios-native/LOKICINEMA.xcodeproj
+      - name: Build for iOS Simulator
+        run: xcodebuild -project ios-native/LOKICINEMA.xcodeproj -scheme LOKICINEMA -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
