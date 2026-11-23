@@ -34,6 +34,7 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
     let webView: WKWebView
     private let startURL = URL(string: "https://www18.redecanais.in/")!
     private let historyKey = "lokiCinema.watchHistory.v1"
+    private var pendingResumePosition: Double = 0
 
     override init() {
         let contentController = WKUserContentController()
@@ -84,6 +85,7 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
 
     func open(_ entry: WatchEntry) {
         guard let url = URL(string: entry.url), ["http", "https"].contains(url.scheme?.lowercased() ?? "") else { return }
+        pendingResumePosition = entry.position
         webView.load(URLRequest(url: url))
     }
 
@@ -170,6 +172,29 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
         isLoading = false
         syncNavigation()
         webView.evaluateJavaScript(Self.pageEnhancementScript, completionHandler: nil)
+        if pendingResumePosition > 0 {
+            let seconds = pendingResumePosition
+            pendingResumePosition = 0
+            let resumeScript = """
+            (function() {
+              var target = \(seconds);
+              var attempts = 0;
+              var timer = setInterval(function() {
+                attempts++;
+                var video = Array.from(document.querySelectorAll('video')).find(function(item) {
+                  return Number.isFinite(item.duration) && item.duration > 0;
+                });
+                if (video) {
+                  try { video.currentTime = Math.min(target, Math.max(0, video.duration - 2)); } catch (_) {}
+                  clearInterval(timer);
+                } else if (attempts >= 40) {
+                  clearInterval(timer);
+                }
+              }, 500);
+            })();
+            """
+            webView.evaluateJavaScript(resumeScript, completionHandler: nil)
+        }
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
@@ -249,6 +274,9 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
           const target = new URL(link.href, location.href);
           if (!/^https?:$/.test(target.protocol)) return;
           const image = link.querySelector('img');
+          const cardHint = ((link.className || '') + ' ' +
+            (link.parentElement && link.parentElement.className || '')).toLowerCase();
+          if (!image && !/poster|filme|movie|serie|card|item/.test(cardHint)) return;
           const title = link.getAttribute('aria-label') || link.title ||
             (image && (image.alt || image.title)) || link.innerText || link.textContent ||
             decodeURIComponent(target.pathname.split('/').filter(Boolean).pop() || '');
