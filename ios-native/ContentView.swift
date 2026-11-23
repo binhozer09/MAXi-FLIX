@@ -31,34 +31,39 @@ struct ContentView: View {
     @State private var canGoForward = false
     @State private var showingHistory = false
     @State private var history: [WatchItem] = []
+    @AppStorage("loki.lastVisitedURL") private var lastVisitedURL = ""
 
     var body: some View {
         VStack(spacing: 0) {
             HStack {
                 Text("LOKI CINEMA")
                     .font(.system(size: 19, weight: .bold))
-                    .foregroundStyle(.white)
+                    .tracking(1.1)
+                    .foregroundStyle(Color(red: 0.94, green: 0.82, blue: 0.53))
                 Spacer()
-                Button("ATUALIZAR") { webView?.reload() }
-                    .font(.system(size: 13, weight: .bold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(Color(red: 0.45, green: 0.12, blue: 0.66))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                Button {
+                    webView?.reload()
+                } label: {
+                    Label("Atualizar", systemImage: "arrow.clockwise")
+                        .font(.system(size: 13, weight: .bold))
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(Color(red: 0.38, green: 0.25, blue: 0.10))
             }
             .padding(.horizontal, 15)
-            .frame(height: 56)
-            .background(Color(red: 0.08, green: 0.07, blue: 0.11))
+            .frame(height: 54)
+            .background(Color(red: 0.045, green: 0.043, blue: 0.055))
 
             CatalogWebView(
-                url: catalogURL,
+                url: URL(string: lastVisitedURL).flatMap { isAllowedCatalogURL($0) ? $0 : nil } ?? catalogURL,
                 webView: $webView,
                 canGoBack: $canGoBack,
-                canGoForward: $canGoForward
+                canGoForward: $canGoForward,
+                onURLChange: { lastVisitedURL = $0.absoluteString }
             )
-            .background(Color.black)
+            .background(.black)
 
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Button { webView?.goBack() } label: {
                     Label("Voltar", systemImage: "chevron.left").frame(maxWidth: .infinity)
                 }
@@ -76,17 +81,24 @@ struct ContentView: View {
                     Label("Assistidos", systemImage: "clock").frame(maxWidth: .infinity)
                 }
             }
-            .font(.system(size: 14, weight: .semibold))
+            .font(.system(size: 13, weight: .semibold))
             .buttonStyle(.borderedProminent)
-            .tint(Color(red: 0.36, green: 0.12, blue: 0.55))
+            .tint(Color(red: 0.27, green: 0.20, blue: 0.35))
             .padding(8)
-            .background(Color(red: 0.08, green: 0.07, blue: 0.11))
+            .background(Color(red: 0.045, green: 0.043, blue: 0.055))
         }
         .background(.black)
         .sheet(isPresented: $showingHistory) {
             WatchHistoryView(items: history) { item in
-                guard let url = URL(string: item.url) else { return }
-                webView?.load(URLRequest(url: url))
+                guard let url = URL(string: item.url), isAllowedCatalogURL(url) else { return }
+                let escaped = item.time ?? 0
+                let prepare = "sessionStorage.setItem('loki_resume_pending_v1', " +
+                    "(function(){return JSON.stringify(" +
+                    "{url:" + jsString(url.absoluteString) +
+                    ",time:" + String(escaped) + "});})());"
+                webView?.evaluateJavaScript(prepare) { _, _ in
+                    self.webView?.load(URLRequest(url: url))
+                }
                 showingHistory = false
             }
             .presentationDetents([.medium, .large])
@@ -96,7 +108,7 @@ struct ContentView: View {
     }
 
     private func loadHistory() {
-        let script = "JSON.stringify(JSON.parse(localStorage.getItem('maxiflix_watch_history_v1') || '[]'))"
+        let script = "JSON.stringify(JSON.parse(localStorage.getItem('loki_watch_history_v1') || '[]'))"
         webView?.evaluateJavaScript(script) { result, _ in
             guard let json = result as? String,
                   let data = json.data(using: .utf8),
@@ -107,6 +119,18 @@ struct ContentView: View {
             DispatchQueue.main.async { history = items }
         }
     }
+
+    private func isAllowedCatalogURL(_ url: URL) -> Bool {
+        guard let host = url.host?.lowercased(),
+              url.scheme == "https" || url.scheme == "http" else { return false }
+        return host == catalogHost || host.hasSuffix("." + catalogHost)
+    }
+
+    private func jsString(_ value: String) -> String {
+        let data = try? JSONSerialization.data(withJSONObject: [value])
+        let encoded = data.flatMap { String(data: $0, encoding: .utf8) } ?? "[\"\"]"
+        return String(encoded.dropFirst().dropLast())
+    }
 }
 
 private struct CatalogWebView: UIViewRepresentable {
@@ -114,6 +138,7 @@ private struct CatalogWebView: UIViewRepresentable {
     @Binding var webView: WKWebView?
     @Binding var canGoBack: Bool
     @Binding var canGoForward: Bool
+    let onURLChange: (URL) -> Void
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
@@ -121,23 +146,68 @@ private struct CatalogWebView: UIViewRepresentable {
         configuration.mediaTypesRequiringUserActionForPlayback = .all
         configuration.websiteDataStore = .default()
 
+        let controller = WKUserContentController()
+        controller.addUserScript(WKUserScript(
+            source: Self.catalogEnhancements,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: false
+        ))
+        configuration.userContentController = controller
+
         let view = WKWebView(frame: .zero, configuration: configuration)
         view.navigationDelegate = context.coordinator
+        view.uiDelegate = context.coordinator
         view.allowsBackForwardNavigationGestures = true
         view.scrollView.contentInsetAdjustmentBehavior = .never
         view.isOpaque = false
         view.backgroundColor = .black
         view.scrollView.backgroundColor = .black
-        view.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 30))
         DispatchQueue.main.async { self.webView = view }
+
+        Self.installAdBlocker(on: view) {
+            view.load(URLRequest(url: url, cachePolicy: .useProtocolCachePolicy, timeoutInterval: 30))
+        }
         return view
     }
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
-
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    private static func installAdBlocker(on webView: WKWebView, completion: @escaping () -> Void) {
+        let domains = [
+            "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+            "googletagservices.com", "adservice.google.com", "adnxs.com",
+            "adform.net", "taboola.com", "outbrain.com", "criteo.com",
+            "pubmatic.com", "openx.net", "rubiconproject.com", "casalemedia.com",
+            "smartadserver.com", "adroll.com", "amazon-adsystem.com",
+            "popads.net", "popcash.net", "propellerads.com", "adsterra.com",
+            "exoclick.com", "trafficjunky.net", "juicyads.com", "hilltopads.net",
+            "onclickads.net", "onclickalgo.com", "mgid.com", "revcontent.com",
+            "adskeeper.co.uk", "1win.com", "1win.bet", "1win.tv", "1win.run",
+            "1win.link", "1win.games", "1win.live"
+        ]
+        let rules: [[String: Any]] = domains.map { domain in
+            let escaped = NSRegularExpression.escapedPattern(for: domain)
+            return [
+                "trigger": ["url-filter": "^https?://([^/]+\\.)?\(escaped)/"],
+                "action": ["type": "block"]
+            ]
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: rules),
+              let encoded = String(data: data, encoding: .utf8) else {
+            completion()
+            return
+        }
+        WKContentRuleListStore.default().compileContentRuleList(
+            forIdentifier: "loki-cinema-ad-block",
+            encodedContentRuleList: encoded
+        ) { list, _ in
+            if let list { webView.configuration.userContentController.add(list) }
+            completion()
+        }
+    }
+
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let parent: CatalogWebView
         init(_ parent: CatalogWebView) { self.parent = parent }
 
@@ -145,14 +215,15 @@ private struct CatalogWebView: UIViewRepresentable {
             DispatchQueue.main.async {
                 self.parent.canGoBack = webView.canGoBack
                 self.parent.canGoForward = webView.canGoForward
+                if let url = webView.url { self.parent.onURLChange(url) }
             }
-            webView.evaluateJavaScript(Self.historyTrackerScript, completionHandler: nil)
         }
 
         func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
             DispatchQueue.main.async {
                 self.parent.canGoBack = webView.canGoBack
                 self.parent.canGoForward = webView.canGoForward
+                if let url = webView.url { self.parent.onURLChange(url) }
             }
         }
 
@@ -174,67 +245,113 @@ private struct CatalogWebView: UIViewRepresentable {
             decisionHandler(.allow)
         }
 
-        private static let historyTrackerScript = """
-        (() => {
-          const key = 'maxiflix_watch_history_v1';
-          const resumeKey = 'maxiflix_resume_v1';
-          const brand = /rede\\s*(?:de\\s*)?canais(?:\\s*\\.?\\s*in)?/i;
-          if (window.__lokiHistoryTracker) return;
-          window.__lokiHistoryTracker = true;
-          const read = () => {
-            try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v : []; }
-            catch (_) { return []; }
-          };
-          const save = item => {
-            try {
-              const list = read().filter(x => x.url !== item.url);
-              list.unshift(item);
-              localStorage.setItem(key, JSON.stringify(list.slice(0, 30)));
-            } catch (_) {}
-          };
-          const title = () => {
-            let value = (document.title || '').replace(/\\s*[-|]\\s*LOKI CINEMA.*/i, '').trim();
-            if (!value || brand.test(value)) value = document.querySelector('h1,h2,[class*="title"],[class*="name"]')?.textContent?.trim() || 'Conteúdo assistido';
-            return value.slice(0, 120);
-          };
-          document.addEventListener('click', event => {
-            try {
-              const node = event.target?.nodeType === 1 ? event.target : event.target?.parentElement;
-              const link = node?.closest?.('a[href]');
-              if (!link) return;
-              const dest = new URL(link.href, location.href);
-              if (!(dest.hostname === 'redecanais.in' || dest.hostname.endsWith('.redecanais.in')) || dest.pathname === '/') return;
-              const image = link.querySelector('img');
-              const hint = ((link.className || '') + ' ' + (link.parentElement?.className || '')).toLowerCase();
-              if (!image && !/poster|filme|movie|serie|card|item/.test(hint)) return;
-              let name = link.getAttribute('aria-label') || link.getAttribute('title') ||
-                image?.getAttribute('alt') || image?.getAttribute('title') || link.innerText || link.textContent || '';
-              name = name.replace(/\\s+/g, ' ').trim();
-              if (!name || brand.test(name)) name = decodeURIComponent(dest.pathname.split('/').filter(Boolean).pop() || '').replace(/[-_]+/g, ' ').trim();
-              if (!name || brand.test(name)) return;
-              save({url:dest.href,title:name.slice(0,120),time:0,duration:0,updatedAt:Date.now()});
-            } catch (_) {}
-          }, true);
-          const saveProgress = video => {
-            try {
-              if (!Number.isFinite(video.duration) || video.duration <= 0 || !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
-              const item = {url:location.href,title:title(),time:video.currentTime,duration:video.duration,updatedAt:Date.now()};
-              localStorage.setItem(resumeKey, JSON.stringify(item));
-              save(item);
-            } catch (_) {}
-          };
-          const install = () => document.querySelectorAll('video').forEach(video => {
-            if (video.dataset.lokiTracked === '1') return;
-            video.dataset.lokiTracked = '1';
-            let last = 0;
-            video.addEventListener('timeupdate', () => { const now = Date.now(); if (now-last >= 3000) { last=now; saveProgress(video); } });
-            video.addEventListener('pause', () => saveProgress(video));
-          });
-          install();
-          new MutationObserver(install).observe(document.documentElement, {childList:true,subtree:true});
-        })();
-        """
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            guard navigationAction.targetFrame == nil,
+                  let url = navigationAction.request.url else { return nil }
+            webView.load(URLRequest(url: url))
+            return nil
+        }
     }
+
+    private static let catalogEnhancements = #"""
+    (() => {
+      if (window.__lokiCinemaEnhancements) return;
+      window.__lokiCinemaEnhancements = true;
+      const historyKey = 'loki_watch_history_v1';
+      const resumeKey = 'loki_resume_v1';
+      const pendingKey = 'loki_resume_pending_v1';
+      const brandPattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
+      const readHistory = () => {
+        try { const value = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value : []; }
+        catch (_) { return []; }
+      };
+      const save = item => {
+        try {
+          const list = readHistory().filter(entry => entry.url !== item.url);
+          list.unshift(item);
+          localStorage.setItem(historyKey, JSON.stringify(list.slice(0, 30)));
+        } catch (_) {}
+      };
+      const currentTitle = () => {
+        let title = (document.title || '').trim();
+        if (!title || brandPattern.test(title)) title = document.querySelector('h1,h2,[class*="title"],[class*="name"]')?.textContent?.trim() || 'Conteúdo assistido';
+        return title.slice(0, 120);
+      };
+      document.addEventListener('click', event => {
+        try {
+          const node = event.target?.nodeType === 1 ? event.target : event.target?.parentElement;
+          const link = node?.closest?.('a[href]');
+          if (!link) return;
+          const destination = new URL(link.href, location.href);
+          if (!(destination.hostname === 'redecanais.in' || destination.hostname.endsWith('.redecanais.in')) || destination.pathname === '/') return;
+          const image = link.querySelector('img');
+          const hint = ((link.className || '') + ' ' + (link.parentElement?.className || '')).toLowerCase();
+          if (!image && !/poster|filme|movie|serie|card|item/.test(hint)) return;
+          let title = link.getAttribute('aria-label') || link.getAttribute('title') || image?.alt || image?.title || link.innerText || link.textContent || '';
+          title = title.replace(/\s+/g, ' ').trim();
+          if (!title || brandPattern.test(title)) title = decodeURIComponent(destination.pathname.split('/').filter(Boolean).pop() || '').replace(/[-_]+/g, ' ').trim();
+          if (title) save({url: destination.href, title: title.slice(0, 120), time: 0, duration: 0, updatedAt: Date.now()});
+        } catch (_) {}
+      }, true);
+      const saveProgress = video => {
+        try {
+          if (!Number.isFinite(video.duration) || video.duration <= 0 || !Number.isFinite(video.currentTime) || video.currentTime < 3) return;
+          const item = {url: location.href, title: currentTitle(), time: video.currentTime, duration: video.duration, updatedAt: Date.now()};
+          localStorage.setItem(resumeKey, JSON.stringify(item));
+          save(item);
+        } catch (_) {}
+      };
+      const attachVideos = () => document.querySelectorAll('video').forEach(video => {
+        if (video.dataset.lokiTracked === '1') return;
+        video.dataset.lokiTracked = '1';
+        let lastSave = 0;
+        video.addEventListener('timeupdate', () => {
+          const now = Date.now();
+          if (now - lastSave >= 3000) { lastSave = now; saveProgress(video); }
+        });
+        video.addEventListener('pause', () => saveProgress(video));
+        video.addEventListener('ended', () => { try { localStorage.removeItem(resumeKey); } catch (_) {} });
+      });
+      const cleanAds = () => {
+        document.querySelectorAll('iframe[src*="1win" i],a[href*="1win" i],img[src*="1win" i],img[alt*="1win" i],[class*="1win" i],[id*="1win" i],[data-ad*="1win" i]').forEach(node => {
+          if (!node.closest('#loki-continue-assistindo')) node.remove();
+        });
+      };
+      const replaceBrand = () => {
+        if (!document.body || document.getElementById('loki-brand-mask')) return;
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+          const node = walker.currentNode;
+          if (node.parentElement?.closest('#loki-continue-assistindo')) continue;
+          if (brandPattern.test((node.nodeValue || '').trim())) {
+            const mask = document.createElement('span');
+            mask.id = 'loki-brand-mask';
+            mask.style.cssText = 'display:inline-block;background:#000;width:76px;height:1.1em;vertical-align:middle;border-radius:2px';
+            node.parentNode.replaceChild(mask, node);
+            break;
+          }
+        }
+      };
+      const resumePending = () => {
+        try {
+          const pending = JSON.parse(sessionStorage.getItem(pendingKey) || 'null');
+          if (!pending || pending.url !== location.href || !(pending.time > 0)) return;
+          sessionStorage.removeItem(pendingKey);
+          let attempts = 0;
+          const timer = setInterval(() => {
+            attempts++;
+            const video = [...document.querySelectorAll('video')].find(v => Number.isFinite(v.duration) && v.duration > 0);
+            if (video) { try { video.currentTime = Math.min(pending.time, Math.max(0, video.duration - 2)); } catch (_) {} clearInterval(timer); }
+            else if (attempts >= 40) clearInterval(timer);
+          }, 500);
+        } catch (_) {}
+      };
+      const start = () => { attachVideos(); cleanAds(); replaceBrand(); resumePending(); };
+      start();
+      new MutationObserver(start).observe(document.documentElement, {childList:true,subtree:true,characterData:true});
+    })();
+    """#
 }
 
 private struct WatchHistoryView: View {
