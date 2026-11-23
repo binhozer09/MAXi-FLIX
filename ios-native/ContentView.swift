@@ -248,7 +248,11 @@ private struct CatalogWebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
                      for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
             guard navigationAction.targetFrame == nil,
-                  let url = navigationAction.request.url else { return nil }
+                  let url = navigationAction.request.url,
+                  let scheme = url.scheme?.lowercased(),
+                  scheme == "https" || scheme == "http",
+                  let host = url.host?.lowercased(),
+                  host == catalogHost || host.hasSuffix("." + catalogHost) else { return nil }
             webView.load(URLRequest(url: url))
             return nil
         }
@@ -258,9 +262,9 @@ private struct CatalogWebView: UIViewRepresentable {
     (() => {
       if (window.__lokiCinemaEnhancements) return;
       window.__lokiCinemaEnhancements = true;
-      const historyKey = 'loki_watch_history_v1';
-      const resumeKey = 'loki_resume_v1';
-      const pendingKey = 'loki_resume_pending_v1';
+      const historyKey = 'maxiflix_watch_history_v1';
+      const resumeKey = 'maxiflix_resume_v1';
+      const pendingKey = 'maxiflix_resume_pending_v1';
       const brandPattern = /rede\s*(?:de\s*)?canais(?:\s*\.?\s*in)?/i;
       const readHistory = () => {
         try { const value = JSON.parse(localStorage.getItem(historyKey) || '[]'); return Array.isArray(value) ? value : []; }
