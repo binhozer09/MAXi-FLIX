@@ -1,6 +1,7 @@
 import AVKit
 import SwiftUI
 import WebKit
+import UIKit
 
 private enum LokiPalette {
     static let background = Color(red: 8/255, green: 9/255, blue: 13/255)
