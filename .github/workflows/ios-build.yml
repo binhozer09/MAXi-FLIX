@@ -18,6 +18,6 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
       - name: Generate Xcode project
-        run: xcodegen generate --spec ios-native/project.yml --project ios-native/LOKICINEMA.xcodeproj
+        run: xcodegen generate --spec ios-native/project.yml --project ios-native
       - name: Build for iOS Simulator
         run: xcodebuild -project ios-native/LOKICINEMA.xcodeproj -scheme LOKICINEMA -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
