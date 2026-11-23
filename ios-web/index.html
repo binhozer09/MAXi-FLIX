@@ -1,42 +1,84 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#09090f"><meta name="description" content="LOKI CINEMA — experiência de cinema no seu iPhone.">
-<link rel="manifest" href="/manifest.webmanifest"><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#09090d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LOKI CINEMA">
+<meta name="description" content="LOKI CINEMA para iPhone.">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>LOKI CINEMA</title>
 <style>
-:root{color-scheme:dark;font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#09090f;color:#f8f8fb}
-*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% -20%,#332044 0,transparent 55%),#09090f}
-header{height:66px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid #ffffff16;background:#09090fdd;position:sticky;top:0;z-index:2;backdrop-filter:blur(14px)}
-.brand{font-size:21px;font-weight:900;letter-spacing:1.5px}.brand span{color:#c084fc}.pill{border:1px solid #ffffff25;color:#ddd6fe;border-radius:99px;padding:7px 11px;font-size:11px}
-main{max-width:960px;margin:auto;padding:30px 16px 50px}.hero{padding:24px 4px 20px}.eyebrow{color:#c084fc;font-size:11px;font-weight:800;letter-spacing:2px}.hero h1{font-size:clamp(28px,7vw,44px);line-height:1.05;margin:10px 0}.hero p{color:#aaa7b5;line-height:1.55;max-width:580px;font-size:14px}
-.actions{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.btn{border:0;border-radius:12px;padding:13px 16px;font-weight:750;font-size:13px;cursor:pointer}.primary{background:#a855f7;color:white}.secondary{background:#ffffff12;color:#f4eaff;border:1px solid #ffffff20}
-.viewer{border:1px solid #ffffff22;border-radius:18px;overflow:hidden;background:#11111a;box-shadow:0 20px 80px #0008}.viewerbar{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;color:#c9c5d3;font-size:12px;border-bottom:1px solid #ffffff15}.framewrap{height:min(68vh,680px);min-height:420px;background:#000;position:relative}.framewrap iframe{width:100%;height:100%;border:0;background:#000}.fallback{position:absolute;inset:0;display:none;place-content:center;text-align:center;padding:25px;background:#101018}.fallback p{color:#aaa7b5;line-height:1.5;font-size:13px}.fallback a{color:#d8b4fe}.note{font-size:12px;color:#898594;line-height:1.55;margin:16px 4px}.install{display:none}.footer{color:#777382;text-align:center;font-size:11px;padding:25px 0}
-@media(max-width:560px){main{padding-top:18px}.framewrap{height:68vh;min-height:380px}.hero{padding-top:20px}}
+:root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#08080d;color:#fff;--gold:#d8b45a;--gold2:#f2d98b}
+*{box-sizing:border-box}body{margin:0;min-height:100svh;background:radial-gradient(ellipse at 50% -20%,#5b431c 0,transparent 48%),linear-gradient(160deg,#111018,#07070b 68%);padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+header{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #d8b45a35;background:#09090ddd;backdrop-filter:blur(16px)}
+.brand{font-size:22px;font-weight:900;letter-spacing:2px}.brand span{color:var(--gold2)}.version{font-size:10px;letter-spacing:1.5px;color:#d8c58f;border:1px solid #d8b45a55;border-radius:99px;padding:7px 10px}
+main{width:min(100% - 36px,560px);margin:0 auto;padding:clamp(42px,10vh,90px) 0 36px;text-align:center}
+.mark{width:82px;height:82px;border:1px solid #d8b45a88;border-radius:24px;margin:0 auto 25px;display:grid;place-items:center;color:var(--gold2);font-weight:950;font-size:30px;box-shadow:0 0 55px #d8b45a20,inset 0 0 24px #d8b45a12}
+.kicker{font-size:10px;letter-spacing:4px;color:var(--gold);font-weight:800}
+h1{font-size:clamp(34px,9vw,48px);line-height:1.05;letter-spacing:1px;margin:12px 0}
+h1 span{color:var(--gold2)}.lead{color:#b8b4c0;line-height:1.65;font-size:14px;max-width:390px;margin:0 auto}
+.actions{display:grid;gap:12px;margin:34px auto 0;max-width:380px}
+button{appearance:none;border:0;border-radius:13px;padding:16px 18px;font-size:14px;font-weight:800;cursor:pointer}
+.primary{background:linear-gradient(135deg,#f0d68a,#b98a35);color:#17120a;box-shadow:0 8px 26px #c99b3d35}
+.secondary{background:#ffffff0b;color:#eee;border:1px solid #ffffff24}
+.install{display:none}
+.hint{margin:23px auto 0;color:#898593;font-size:11px;line-height:1.6;max-width:360px}
+footer{position:fixed;bottom:calc(14px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;color:#625e69;font-size:10px;letter-spacing:1px}
+dialog{width:min(90vw,390px);border:1px solid #d8b45a66;border-radius:18px;background:#15131a;color:white;padding:24px;box-shadow:0 20px 80px #000b}
+dialog::backdrop{background:#000b;backdrop-filter:blur(4px)}dialog h2{font-size:20px;margin:0 0 12px;color:var(--gold2)}dialog p{font-size:13px;line-height:1.65;color:#c8c4ce}dialog button{width:100%;margin-top:12px}
+.steps{display:grid;gap:9px;text-align:left;margin:15px 0}.step{font-size:13px;line-height:1.5;color:#ddd;background:#ffffff0a;border-radius:10px;padding:10px 12px}.step b{color:var(--gold2)}
+@media(min-height:760px){main{padding-top:11vh}}
 </style>
 </head>
 <body>
-<header><div class="brand">LOKI <span>CINEMA</span></div><div class="pill">VERSÃO IPHONE</div></header>
+<header><div class="brand">LOKI <span>CINEMA</span></div><div class="version">IPHONE</div></header>
 <main>
-<section class="hero"><div class="eyebrow">SUA EXPERIÊNCIA DE CINEMA</div><h1>LOKI CINEMA</h1><p>Acesse pelo Safari e adicione à tela inicial do iPhone para abrir como um aplicativo.</p>
-<div class="actions"><button class="btn primary" id="openExternal">Abrir catálogo</button><button class="btn secondary install" id="installBtn">Instalar no iPhone</button><button class="btn secondary" id="reloadBtn">Recarregar</button></div>
-</section>
-<section class="viewer"><div class="viewerbar"><span>CATÁLOGO</span><span id="status">Carregando site…</span></div>
-<div class="framewrap"><iframe id="catalog" title="Catálogo LOKI CINEMA" src="https://www18.redecanais.in/" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
-<div class="fallback" id="fallback"><div><strong>O catálogo não permitiu abrir dentro desta página.</strong><p>Isso pode acontecer por uma proteção do próprio site. Use o botão abaixo para abrir diretamente no Safari.</p><a href="https://www18.redecanais.in/" target="_blank" rel="noopener">Abrir catálogo em nova página</a></div></div></div></section>
-<p class="note">Compatibilidade: alguns sites bloqueiam a exibição incorporada no Safari. Se o catálogo não aparecer, abra-o diretamente. A reprodução e os recursos disponíveis dependem do site de origem.</p>
-<div class="footer">LOKI CINEMA · Experiência web independente</div>
+<div class="mark">L</div>
+<div class="kicker">SUA CENTRAL DE ENTRETENIMENTO</div>
+<h1>LOKI <span>CINEMA</span></h1>
+<p class="lead">Acesse o catálogo diretamente no Safari. Adicione o LOKI CINEMA à tela inicial para abrir em uma experiência de aplicativo.</p>
+<div class="actions">
+<button class="primary" id="openCatalog">ABRIR LOKI CINEMA</button>
+<button class="secondary install" id="installButton">INSTALAR AGORA</button>
+<button class="secondary" id="installHelp">COMO INSTALAR NO IPHONE</button>
+</div>
+<p class="hint" id="hint">A instalação no iPhone é feita pelo menu Compartilhar do Safari. Depois de instalado, este botão de instalação desaparece automaticamente.</p>
 </main>
+<footer>LOKI CINEMA · EXPERIÊNCIA PARA IPHONE</footer>
+<dialog id="helpDialog">
+<h2>Instalar no iPhone</h2>
+<p>O Safari não oferece um botão de instalação automática como alguns navegadores. Siga estes passos:</p>
+<div class="steps">
+<div class="step"><b>1.</b> Abra esta página no Safari.</div>
+<div class="step"><b>2.</b> Toque em <b>Compartilhar</b> (quadrado com seta para cima).</div>
+<div class="step"><b>3.</b> Escolha <b>Adicionar à Tela de Início</b>.</div>
+<div class="step"><b>4.</b> Confirme em <b>Adicionar</b>. Abra o ícone LOKI CINEMA na tela inicial.</div>
+</div>
+<button class="primary" id="closeHelp">ENTENDI</button>
+</dialog>
 <script>
-const frame=document.getElementById('catalog'),status=document.getElementById('status'),fallback=document.getElementById('fallback');
-frame.addEventListener('load',()=>{status.textContent='Site carregado';});
-document.getElementById('openExternal').addEventListener('click',()=>window.open('https://www18.redecanais.in/','_blank','noopener'));
-document.getElementById('reloadBtn').addEventListener('click',()=>{status.textContent='Recarregando…';frame.src='https://www18.redecanais.in/';fallback.style.display='none';});
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
-let deferredPrompt;const install=document.getElementById('installBtn');
-window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredPrompt=e;install.style.display='inline-block';});
-install.addEventListener('click',async()=>{if(!deferredPrompt)return;deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;});
-if(/iphone|ipad|ipod/i.test(navigator.userAgent)&&!window.navigator.standalone){status.textContent='No iPhone: use Compartilhar → Adicionar à Tela de Início';}
+const CATALOG_URL='https://www18.redecanais.in/';
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone=window.navigator.standalone===true||window.matchMedia('(display-mode: standalone)').matches;
+const installButton=document.getElementById('installButton');
+const installHelp=document.getElementById('installHelp');
+const hint=document.getElementById('hint');
+const dialog=document.getElementById('helpDialog');
+document.getElementById('openCatalog').addEventListener('click',()=>{window.location.assign(CATALOG_URL)});
+installHelp.addEventListener('click',()=>dialog.showModal());
+document.getElementById('closeHelp').addEventListener('click',()=>dialog.close());
+if(isStandalone){installButton.style.display='none';installHelp.style.display='none';hint.textContent='LOKI CINEMA instalado. Use o botão abaixo para abrir o catálogo.';}
+else if(isIOS){installHelp.style.display='block';}
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();deferredPrompt=event;installButton.style.display='block';installHelp.style.display='none';});
+installButton.addEventListener('click',async()=>{if(!deferredPrompt){dialog.showModal();return;}deferredPrompt.prompt();await deferredPrompt.userChoice;deferredPrompt=null;installButton.style.display='none';});
+window.addEventListener('appinstalled',()=>{installButton.style.display='none';installHelp.style.display='none';});
+if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}
 </script>
-</body></html>
+</body>
+</html>
