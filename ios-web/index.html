@@ -17,57 +17,35 @@
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#08090d}
 body{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom);display:flex;flex-direction:column}
 header{height:70px;min-height:70px;display:flex;align-items:center;gap:10px;padding:0 10px;background:linear-gradient(110deg,#17131a,#101116 65%,#0b0c11);border-bottom:1px solid #806f493d}
-.crown{color:var(--gold2);font-size:29px;line-height:1}
-.brand{font-weight:900;letter-spacing:1px;color:var(--gold);font-size:17px;line-height:1.05}
-.brand small{display:block;font-size:9px;letter-spacing:2px;margin-top:4px}
-.spacer{flex:1}
+.crown{color:var(--gold2);font-size:29px;line-height:1}.brand{font-weight:900;letter-spacing:1px;color:var(--gold);font-size:17px;line-height:1.05}.brand small{display:block;font-size:9px;letter-spacing:2px;margin-top:4px}.spacer{flex:1}
 header button,nav button{border:1px solid #48404a;background:#202027;color:#eee;border-radius:12px;font-weight:800}
-header button{height:39px;padding:0 10px;font-size:10px;white-space:nowrap}
-header .refresh{background:linear-gradient(110deg,#d6293d,#941426);border-color:#e65a65;color:white}
+header button{height:39px;padding:0 10px;font-size:10px;white-space:nowrap}header .refresh{background:linear-gradient(110deg,#d6293d,#941426);border-color:#e65a65;color:white}
 #status{min-height:24px;padding:5px 12px;text-align:center;font-size:11px;color:#b8a77e;background:#101116}
-main{position:relative;flex:1;min-height:0;background:#08090d}
-iframe{display:block;width:100%;height:100%;border:0;background:#08090d}
+main{position:relative;flex:1;min-height:0;background:#08090d}iframe{display:block;width:100%;height:100%;border:0;background:#08090d}
 #blocked{display:none;position:absolute;inset:0;background:#08090d;padding:28px 22px;text-align:center;align-content:center;justify-items:center}
 #blocked h2{color:var(--gold2);font-size:20px}#blocked p{color:#c3bfca;font-size:14px;line-height:1.6;max-width:360px}
 #blocked button{background:linear-gradient(135deg,#f0d68a,#b98a35);color:#17120a;border:0;border-radius:12px;padding:14px 22px;font-weight:900}
-nav{height:61px;min-height:61px;display:flex;gap:12px;padding:8px 12px;background:#101116;border-top:1px solid #48404a88}
-nav button{flex:1;font-size:14px}nav button:disabled{opacity:.42}
-@media(display-mode:browser){.install-note{display:block}}
+nav{height:61px;min-height:61px;display:flex;gap:12px;padding:8px 12px;background:#101116;border-top:1px solid #48404a88}nav button{flex:1;font-size:14px}nav button:disabled{opacity:.42}
 </style>
 </head>
 <body>
-<header>
-  <div class="crown" aria-hidden="true">♛</div>
-  <div class="brand">LOKI<small>C I N E M A</small></div>
-  <div class="spacer"></div>
-  <button id="assistidos" type="button">♡ ASSISTIDOS</button>
-  <button id="refresh" class="refresh" type="button">ATUALIZAR</button>
-</header>
-<div id="status" role="status">Abrindo o catálogo dentro do LOKI CINEMA…</div>
+<header><div class="crown" aria-hidden="true">♛</div><div class="brand">LOKI<small>C I N E M A</small></div><div class="spacer"></div><button id="assistidos" type="button">♡ ASSISTIDOS</button><button id="refresh" class="refresh" type="button">ATUALIZAR</button></header>
+<div id="status" role="status">Abrindo www18.redecanais.in dentro do LOKI CINEMA…</div>
 <main>
-  <iframe id="catalog" title="Catálogo LOKI CINEMA" src="https://www18.redecanais.in/" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-forms allow-scripts allow-same-origin allow-presentation"></iframe>
-  <section id="blocked">
-    <h2>Não foi possível exibir o catálogo aqui</h2>
-    <p>O servidor do catálogo pode impedir que outros sites o exibam dentro de uma janela incorporada. O LOKI CINEMA não vai abrir o Safari automaticamente nem redirecionar você para fora.</p>
-    <button id="tryAgain" type="button">TENTAR NOVAMENTE</button>
-  </section>
+<iframe id="catalog" title="Catálogo LOKI CINEMA" src="https://www18.redecanais.in/" allow="autoplay; fullscreen; picture-in-picture; encrypted-media; clipboard-read; clipboard-write" referrerpolicy="strict-origin-when-cross-origin" sandbox="allow-forms allow-scripts allow-same-origin allow-presentation allow-popups allow-popups-to-escape-sandbox allow-downloads allow-modals allow-storage-access-by-user-activation"></iframe>
+<section id="blocked"><h2>O site recusou a conexão incorporada</h2><p>O LOKI CINEMA tentou abrir o endereço solicitado dentro desta tela. Se esta mensagem continuar, a recusa vem do servidor do site e não de um botão ou ajuste visual do aplicativo.</p><button id="tryAgain" type="button">TENTAR NOVAMENTE</button></section>
 </main>
-<nav>
-  <button id="back" type="button" disabled aria-disabled="true">‹ &nbsp; Voltar</button>
-  <button id="forward" type="button" disabled aria-disabled="true">Avançar &nbsp; ›</button>
-</nav>
+<nav><button id="back" type="button" disabled aria-disabled="true">‹ &nbsp; Voltar</button><button id="forward" type="button" disabled aria-disabled="true">Avançar &nbsp; ›</button></nav>
 <script>
-const frame=document.getElementById('catalog');
-const status=document.getElementById('status');
-const blocked=document.getElementById('blocked');
-function reloadCatalog(){blocked.style.display='none';frame.style.display='block';status.textContent='Recarregando o catálogo dentro do LOKI CINEMA…';frame.src='https://www18.redecanais.in/';}
+const frame=document.getElementById('catalog'),status=document.getElementById('status'),blocked=document.getElementById('blocked');
+let checkTimer;
+function reloadCatalog(){clearTimeout(checkTimer);blocked.style.display='none';frame.style.display='block';status.textContent='Tentando carregar o catálogo…';frame.src='https://www18.redecanais.in/';checkTimer=setTimeout(()=>{status.textContent='O navegador não confirmou que o catálogo foi exibido. Se houver erro de conexão, o servidor pode estar recusando a incorporação.';},12000);}
 document.getElementById('refresh').addEventListener('click',reloadCatalog);
 document.getElementById('tryAgain').addEventListener('click',reloadCatalog);
-// A PWA não pode ler a página de outro domínio nem controlar o histórico interno do iframe.
 document.getElementById('back').addEventListener('click',()=>{});
 document.getElementById('forward').addEventListener('click',()=>{});
-document.getElementById('assistidos').addEventListener('click',()=>{status.textContent='O histórico de vídeos do site remoto não fica acessível à PWA por segurança do navegador.';});
-frame.addEventListener('load',()=>{status.textContent='Catálogo incorporado: se o servidor permitir, ele aparecerá nesta área.';});
+document.getElementById('assistidos').addEventListener('click',()=>{status.textContent='O histórico interno do site remoto não pode ser consultado pela PWA.';});
+frame.addEventListener('load',()=>{clearTimeout(checkTimer);status.textContent='Resposta recebida do endereço. Se a área mostrar “conexão recusada”, o servidor bloqueou a exibição incorporada.';});
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));}
 </script>
 </body>
